@@ -9,4 +9,7 @@ authors = ["Gwen Lg <me@gwenlg.fr>"]
 keywords = ["subtitles", "subtile", "parse", "editing"]
 categories = ["command-line-utilities"]
 
+[badges]
+maintenance = { status = "actively-developed" }
+
 [dependencies]
