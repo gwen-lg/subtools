@@ -1,0 +1,12 @@
+[package]
+name = "subtools"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "A crate of utils to operate traitements on subtitles"
+repository = "https://github.com/gwen-lg/subtools"
+authors = ["Gwen Lg <me@gwenlg.fr>"]
+keywords = ["subtitles", "subtile", "parse", "editing"]
+categories = ["command-line-utilities"]
+
+[dependencies]
