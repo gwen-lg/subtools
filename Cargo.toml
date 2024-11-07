@@ -10,4 +10,7 @@ keywords = ["subtitles", "subtile", "parse", "editing"]
 categories = ["command-line-utilities"]
 rust-version = "1.88"
 
+[badges]
+maintenance = { status = "actively-developed" }
+
 [dependencies]
