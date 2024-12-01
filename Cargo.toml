@@ -13,6 +13,7 @@ categories = ["command-line-utilities"]
 maintenance = { status = "actively-developed" }
 
 [dependencies]
+anyhow = "1.0"
 
 [lints.rust]
 missing_docs = "deny"
