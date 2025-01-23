@@ -1,18 +1,25 @@
 //! `subtools` is a command line app to check and manipulate subtitles.
 
+mod commands;
+mod file_encoding;
 mod file_processor;
 
 use std::{env, ffi::OsString, path::PathBuf};
 
 use anyhow::Context;
 use clap::Parser;
-use file_processor::{filter_text_subs, FileProcessor};
+use commands::Commands;
+use file_encoding::convert_subs_to_utf8;
+use file_processor::FileProcessor;
 
 /// A CLI application to manipulate subtitles files.
 #[derive(Debug, Parser)]
 #[command(name = "sub_tools")]
 #[command(about = "A command line tool to manipulate subtitles files with help of `subtile`", long_about = None)]
 struct Cli {
+    #[command(subcommand)]
+    pub command: Commands,
+
     /// Can be a file, or a folder, if folder, it tried to process all compatible files of the folder.
     #[arg(short, long, value_name = "PATH")]
     pub path: Option<OsString>,
@@ -29,11 +36,10 @@ fn main() -> anyhow::Result<()> {
     };
 
     let files_processor = FileProcessor::from_path(in_path);
-    files_processor
-        .subtitle_files()
-        .filter_map(filter_text_subs)
-        .for_each(|file| {
-            eprintln!("file : {file:?}");
-        });
+    match args.command {
+        Commands::ConvertToUtf8 {} => {
+            convert_subs_to_utf8(&files_processor);
+        }
+    }
     Ok(())
 }
