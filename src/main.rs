@@ -1,15 +1,21 @@
 //! A command line utilities to test and use subtools functionalities.
 
+mod commands;
+
 use anyhow::Context;
 use clap::Parser;
+use commands::Commands;
 use std::{env, ffi::OsString, path::PathBuf};
-use subtools::{FileProcessor, SubtitleFile};
+use subtools::{convert_subs_to_utf8, FileProcessor};
 
 /// A CLI application to manipulate subtitles files.
 #[derive(Debug, Parser)]
 #[command(name = "sub_tools")]
 #[command(about = "A command line tool to manipulate subtitles files with help of `subtile`", long_about = None)]
 struct Cli {
+    #[command(subcommand)]
+    pub command: Commands,
+
     /// Can be a file, or a folder, if folder, it tried to process all compatible files of the folder.
     #[arg(short, long, value_name = "PATH")]
     pub path: Option<OsString>,
@@ -26,15 +32,10 @@ fn main() -> anyhow::Result<()> {
     };
 
     let files_processor = FileProcessor::from_path(in_path);
-    files_processor.subtitle_files().for_each(|file| {
-        match SubtitleFile::try_from(file.as_path()) {
-            Ok(sub_file) => {
-                eprintln!("{file:?} is recognized as {}", sub_file.format());
-            }
-            Err(err) => {
-                eprintln!("{file:?} is not a recognized subtitle file : {err:?}");
-            }
+    match args.command {
+        Commands::ConvertToUtf8 => {
+            convert_subs_to_utf8(&files_processor);
         }
-    });
+    }
     Ok(())
 }
