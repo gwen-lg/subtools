@@ -1,21 +1,21 @@
 //! A command line utility use subtools functionalities.
 
+mod commands;
+
 use anyhow::Context as _;
 use clap::Parser;
-use std::{
-    borrow::Borrow,
-    env,
-    ffi::OsString,
-    io::Write,
-    path::{Path, PathBuf},
-};
-use subtools::{AppContext, FileProcessor, ProcessingContext, SubProcess, SubtitleFile};
+use commands::Commands;
+use std::{env, ffi::OsString, path::PathBuf};
+use subtools::{AppContext, FileProcessor, SubProcess, convert_subs_to_utf8};
 
 /// A CLI application to manipulate subtitles files.
 #[derive(Debug, Parser)]
 #[command(name = "sub_tools")]
 #[command(about = "A command line tool to manipulate subtitles files with help of `subtile`", long_about = None)]
 struct Cli {
+    #[command(subcommand)]
+    pub command: Commands,
+
     /// Can be a file, or a folder, if folder, it tried to process all compatible files of the folder.
     #[arg(short, long, value_name = "PATH")]
     pub path: Option<OsString>,
@@ -27,31 +27,13 @@ fn main() -> anyhow::Result<()> {
 
     let working_path = get_working_path(&args)?;
     let files_processor = FileProcessor::from_path(working_path);
-
-    let mut proc_ctx = app_ctx.create_sub_process("Check files");
-    files_processor
-        .subtitle_files()
-        .for_each(|file| check_file(&mut proc_ctx, file));
-    Ok(())
-}
-
-fn check_file<F>(proc_ctx: &mut ProcessingContext, file: F)
-where
-    F: Borrow<Path>,
-{
-    let file = file.borrow();
-    match SubtitleFile::try_from(file) {
-        Ok(subfile) => {
-            writeln!(proc_ctx, "{file:?} is recognized as {}", subfile.format()).unwrap();
-        }
-        Err(err) => {
-            writeln!(
-                proc_ctx,
-                "{file:?} is not a recognized subtitle file : {err:?}"
-            )
-            .unwrap();
+    match args.command {
+        Commands::ConvertToUtf8 => {
+            let proc_ctx = app_ctx.create_sub_process("Convert subtitles files to UTF-8");
+            convert_subs_to_utf8(proc_ctx, &files_processor);
         }
     }
+    Ok(())
 }
 
 // get a working path from args or current dir.
