@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, File, ReadDir},
+    fs::{self, ReadDir},
     path::{Path, PathBuf},
 };
 
@@ -102,24 +102,4 @@ fn next_file(dir: &mut ReadDir) -> Option<PathBuf> {
         }
     }
     None
-}
-
-///TODO
-pub fn filter_text_subs<P>(path: P) -> Option<File>
-where
-    P: AsRef<Path>,
-{
-    if let Some(file_ext) = path.as_ref().extension() {
-        if file_ext == "srt" {
-            File::open(path)
-                .inspect_err(|err| eprintln!("filter_text_subs : {err:?}"))
-                .ok()
-        } else {
-            //TODO manage other extension
-            None
-        }
-    } else {
-        //TODO: mange no extension ?
-        None
-    }
 }
