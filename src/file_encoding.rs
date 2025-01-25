@@ -132,3 +132,20 @@ where
 //     prev_value.push_str(line?.as_str());
 //     Ok(prev_value)
 // }
+
+#[cfg(test)]
+mod tests {
+    use std::io::BufReader;
+
+    use super::{UTF8_BOM, has_utf8_bom};
+
+    #[test]
+    fn test_utf8_bom() {
+        let mut bom_reader = BufReader::new(&UTF8_BOM[..]);
+        assert!(has_utf8_bom(&mut bom_reader).unwrap());
+
+        #[expect(clippy::string_lit_as_bytes)]
+        let mut small_reader = BufReader::new("test".as_bytes());
+        assert!(!has_utf8_bom(&mut small_reader).unwrap());
+    }
+}
