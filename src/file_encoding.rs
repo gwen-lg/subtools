@@ -3,6 +3,9 @@ use std::{
     io::{self, BufRead, BufReader, BufWriter, ErrorKind, Write},
 };
 
+use chardetng::EncodingDetector;
+use encoding_rs::{CoderResult, Encoding};
+
 use crate::file_processor::{filter_text_subs, FileProcessor};
 
 const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
@@ -24,7 +27,20 @@ where
     R: BufRead,
     W: Write,
 {
+    let is_utf8 = match Encoding::for_bom(reader.fill_buf().unwrap()) {
+        Some((encoding, size)) => {
+            if encoding == encoding_rs::UTF_8 && size == 3 {
+                true
+            } else {
+                eprintln!("Encoding {encoding:?} is not managed");
+                todo!()
+            }
+        }
+        None => false,
+    };
+
     let has_utf8_bom = has_utf8_bom(&mut reader).unwrap();
+    assert!(is_utf8 == has_utf8_bom);
     if has_utf8_bom {
         // check
         reader
@@ -42,22 +58,31 @@ where
         //Write BOM UTF8 marker : EF BB BF
         writer.write_all(&UTF8_BOM).unwrap();
 
-        let mut line_idx = 1;
-        let mut line = Vec::with_capacity(128);
-        while reader.read_until(b'\n', &mut line).unwrap() > 0 {
-            match String::from_utf8(line.clone()) {
-                Ok(line) => {
-                    //         //TODO: manage encoding
-                    //         //TODO: read all line to check all encoding errors
-                    writer.write_all(line.as_bytes()).unwrap();
-                }
-                Err(err) => {
-                    eprintln!("Line {line_idx} Utf8 error : {err}");
-                }
-            }
+        let mut encoding_detector = EncodingDetector::new();
+        let buf = reader.fill_buf().unwrap();
+        let has_no_ascii = encoding_detector.feed(buf, true);
+        assert!(has_no_ascii); //TODO: if only ascii : new more data, of utf8 compatible
+        let encoding = encoding_detector.guess(None, true);
+        let mut decoder = encoding.new_decoder();
 
-            line_idx += 1;
-            line.clear();
+        let mut _line_idx = 1;
+        let mut line_read = Vec::with_capacity(128);
+        let mut line_encoded = String::with_capacity(256);
+        while reader.read_until(b'\n', &mut line_read).unwrap() > 0 {
+            let (code_res, size_read, replacement_done) =
+                decoder.decode_to_string(line_read.as_slice(), &mut line_encoded, false);
+            assert!(code_res == CoderResult::InputEmpty);
+            assert!(size_read == line_read.len());
+            assert!(!replacement_done);
+
+            //TODO: read all line to check all encoding errors
+            writer.write_all(line_encoded.as_bytes()).unwrap();
+            //eprintln!("Line {line_idx} Utf8 error : {err}");
+
+            //eprintln!("Line {line_idx}");
+            _line_idx += 1;
+            line_encoded.clear();
+            line_read.clear();
         }
 
         // reader
