@@ -3,6 +3,7 @@
 mod commands;
 mod file_encoding;
 mod file_processor;
+mod subtitle_file;
 
 use std::{env, ffi::OsString, path::PathBuf};
 
