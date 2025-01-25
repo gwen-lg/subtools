@@ -42,20 +42,37 @@ where
         //Write BOM UTF8 marker : EF BB BF
         writer.write_all(&UTF8_BOM).unwrap();
 
-        //let mut line = String::with_capacity(128);
-        reader
-            .lines()
-            .enumerate()
-            .map(|(num_line, line)| {
-                line.map_err(|err| format!("Fail to read line {num_line} : {err}"))
-            })
-            .try_for_each(|line| {
-                //TODO: manage encoding
-                //TODO: read all line to check all encoding errors
-                let x = line.map_err(|err| io::Error::new(ErrorKind::Other, err))?;
-                writer.write_all(x.as_bytes())
-            })
-            .unwrap();
+        let mut line_idx = 1;
+        let mut line = Vec::with_capacity(128);
+        while reader.read_until(b'\n', &mut line).unwrap() > 0 {
+            match String::from_utf8(line.clone()) {
+                Ok(line) => {
+                    //         //TODO: manage encoding
+                    //         //TODO: read all line to check all encoding errors
+                    writer.write_all(line.as_bytes()).unwrap();
+                }
+                Err(err) => {
+                    eprintln!("Line {line_idx} Utf8 error : {err}");
+                }
+            }
+
+            line_idx += 1;
+            line.clear();
+        }
+
+        // reader
+        //     .lines()
+        //     .enumerate()
+        //     .map(|(num_line, line)| {
+        //         line.map_err(|err| format!("Fail to read line {num_line} : {err}"))
+        //     })
+        //     .try_for_each(|line| {
+        //         //TODO: manage encoding
+        //         //TODO: read all line to check all encoding errors
+        //         let x = line.map_err(|err| io::Error::new(ErrorKind::Other, err))?;
+        //         writer.write_all(x.as_bytes())
+        //     })
+        //     .unwrap();
     }
 }
 
@@ -92,5 +109,7 @@ mod tests {
 
         let mut small_reader = BufReader::new("test".as_bytes());
         assert!(!has_utf8_bom(&mut small_reader).unwrap());
+
+        //TODO: test error of to small buffer
     }
 }
