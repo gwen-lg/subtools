@@ -78,3 +78,19 @@ where
 //     prev_value.push_str(line?.as_str());
 //     Ok(prev_value)
 // }
+
+#[cfg(test)]
+mod tests {
+    use std::io::BufReader;
+
+    use super::{has_utf8_bom, UTF8_BOM};
+
+    #[test]
+    fn test_utf8_bom() {
+        let mut bom_reader = BufReader::new(&UTF8_BOM[..]);
+        assert!(has_utf8_bom(&mut bom_reader).unwrap());
+
+        let mut small_reader = BufReader::new("test".as_bytes());
+        assert!(!has_utf8_bom(&mut small_reader).unwrap());
+    }
+}
