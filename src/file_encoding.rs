@@ -6,7 +6,7 @@ use std::{
 use chardetng::EncodingDetector;
 use encoding_rs::{CoderResult, Encoding};
 
-use crate::file_processor::{filter_text_subs, FileProcessor};
+use crate::{file_processor::FileProcessor, subtitle_file::SubtitleFile};
 
 const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 
@@ -14,11 +14,19 @@ const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 pub fn convert_subs_to_utf8(files: &FileProcessor) {
     files
         .subtitle_files()
-        .filter_map(filter_text_subs)
-        .for_each(|file| {
-            let reader = BufReader::new(file);
-            let writer = BufWriter::new(File::create("TODO.srt").unwrap());
-            convert_file_to_utf8(reader, writer);
+        .filter_map(|path| SubtitleFile::try_from(path.as_path()).ok())
+        .filter(|sub_file| sub_file.is_text())
+        .for_each(|sub_file| {
+            let file = File::open(sub_file.path())
+                .inspect_err(|err| eprintln!("todo : {err:?}"))
+                .ok();
+            if let Some(file) = file {
+                let reader = BufReader::new(file);
+                let writer = BufWriter::new(File::create("TODO.srt").unwrap());
+                convert_file_to_utf8(reader, writer);
+            } else {
+                todo!()
+            }
         });
 }
 
