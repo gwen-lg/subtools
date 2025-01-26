@@ -1,5 +1,5 @@
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{self, BufRead, BufReader, BufWriter, ErrorKind, Write},
 };
 
@@ -15,6 +15,7 @@ pub const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 pub fn convert_subs_to_utf8(files: &FileProcessor) {
     files
         .subtitle_files()
+        //TODO: ignore previous copy of old file
         .filter_map(|path| SubtitleFile::try_from(path.as_path()).ok())
         .filter(|sub_file| sub_file.is_text())
         .for_each(|sub_file| {
@@ -22,20 +23,16 @@ pub fn convert_subs_to_utf8(files: &FileProcessor) {
                 .inspect_err(|err| eprintln!("Failed to open '{:?}' : {err:?}", sub_file.path()))
                 .ok();
             if let Some(file) = file {
-                let reader = BufReader::new(file);
-                let writer = BufWriter::new(File::create("TODO.srt").unwrap());
-                convert_file_to_utf8(reader, writer);
+                convert_file_to_utf8(&sub_file, file);
             } else {
                 todo!()
             }
         });
 }
 
-fn convert_file_to_utf8<R, W>(mut reader: R, mut writer: W)
-where
-    R: BufRead,
-    W: Write,
-{
+fn convert_file_to_utf8(sub_file: &SubtitleFile, file: File) {
+    let mut reader = BufReader::new(file);
+
     let is_utf8 = match Encoding::for_bom(reader.fill_buf().unwrap()) {
         Some((encoding, size)) => {
             if encoding == encoding_rs::UTF_8 && size == 3 {
@@ -63,7 +60,13 @@ where
                 Ok::<_, io::Error>(())
             })
             .unwrap();
+        eprintln!("File `{:?}` is valid utf-8", sub_file.path().file_name());
     } else {
+        let out_filename = sub_file.gen_new_name("old");
+        //TODO: check if old file already exist
+        fs::rename(sub_file.path(), out_filename).unwrap();
+        let mut writer = BufWriter::new(File::create(sub_file.path()).unwrap());
+
         //Write BOM UTF8 marker : EF BB BF
         writer.write_all(&UTF8_BOM).unwrap();
 
@@ -93,6 +96,10 @@ where
             line_encoded.clear();
             line_read.clear();
         }
+        eprintln!(
+            "File `{:?}` is converted to utf-8",
+            sub_file.path().file_name()
+        );
 
         // reader
         //     .lines()
