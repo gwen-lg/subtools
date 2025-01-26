@@ -26,3 +26,31 @@ jobs:
       - uses: webiny/action-conventional-commits@v1.3.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  check-push-commits:
+    if: github.event_name == 'push'
+    strategy:
+      matrix:
+        commit: ${{ github.event.commits }}
+
+    name: "Check: ${{ matrix.commit.message }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install rust-toolchain stable"
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain : stable
+          components: clippy, rustfmt
+
+      - name: "Show environment"
+        run: |
+          rustc -vV
+          cargo -vV
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.commit.id }}
+          fetch-depth: 0
+
+      - name: Cargo fmt
+        run: cargo fmt --check
