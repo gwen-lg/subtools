@@ -1,5 +1,5 @@
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{self, BufRead, BufReader, BufWriter, ErrorKind, Write},
 };
 
@@ -17,6 +17,7 @@ pub const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 pub fn convert_subs_to_utf8(proc_ctx: ProcessingContext, files: &FileProcessor) {
     files
         .subtitle_files()
+        //TODO: ignore previous copy of old file
         .filter_map(|path| SubtitleFile::try_from(path.as_path()).ok())
         .filter(SubtitleFile::is_text)
         .process_context(proc_ctx, "Convert subtitles file to utf-8")
@@ -25,20 +26,16 @@ pub fn convert_subs_to_utf8(proc_ctx: ProcessingContext, files: &FileProcessor) 
                 .inspect_err(|err| eprintln!("Failed to open '{:?}' : {err:?}", sub_file.path()))
                 .ok();
             if let Some(file) = file {
-                let reader = BufReader::new(file);
-                let writer = BufWriter::new(File::create("TODO.srt").unwrap());
-                convert_file_to_utf8(&mut ctx.borrow_mut(), reader, writer);
+                convert_file_to_utf8(&mut ctx.borrow_mut(), &sub_file, file);
             } else {
                 todo!()
             }
         });
 }
 
-fn convert_file_to_utf8<R, W>(proc_ctx: &mut ProcessingContext, mut reader: R, mut writer: W)
-where
-    R: BufRead,
-    W: Write,
-{
+fn convert_file_to_utf8(proc_ctx: &mut ProcessingContext, sub_file: &SubtitleFile, file: File) {
+    let mut reader = BufReader::new(file);
+
     let is_utf8 = match Encoding::for_bom(reader.fill_buf().unwrap()) {
         Some((encoding, size)) => {
             if encoding == encoding_rs::UTF_8 && size == 3 {
@@ -66,7 +63,18 @@ where
                 Ok::<_, io::Error>(())
             })
             .unwrap();
+        writeln!(
+            proc_ctx,
+            "File `{:?}` is valid utf-8",
+            sub_file.path().file_name()
+        )
+        .unwrap();
     } else {
+        let out_filename = sub_file.gen_new_name("old");
+        //TODO: check if old file already exist
+        fs::rename(sub_file.path(), out_filename).unwrap();
+        let mut writer = BufWriter::new(File::create(sub_file.path()).unwrap());
+
         //Write BOM UTF8 marker : EF BB BF
         writer.write_all(&UTF8_BOM).unwrap();
 
@@ -96,6 +104,12 @@ where
             line_encoded.clear();
             line_read.clear();
         }
+        writeln!(
+            proc_ctx,
+            "File `{:?}` is converted to utf-8",
+            sub_file.path().file_name()
+        )
+        .unwrap();
 
         // reader
         //     .lines()

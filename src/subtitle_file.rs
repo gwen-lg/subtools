@@ -107,6 +107,17 @@ impl SubtitleFile {
     pub const fn format(&self) -> SubtitleFormat {
         self.format
     }
+
+    /// Generate a name for a new file associated with this.
+    #[expect(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn gen_new_name(&self, pre_ext: &str) -> PathBuf {
+        //TODO: manage lang separate with `.`
+        let file_stem = self.path.file_stem().unwrap().to_str().unwrap().to_owned();
+        let ext = self.path.extension().unwrap().to_str().unwrap();
+        let new_filename = format!("{file_stem}.{pre_ext}.{ext}");
+        self.path.with_file_name(new_filename)
+    }
 }
 
 impl<'a> TryFrom<&'a Path> for SubtitleFile {
