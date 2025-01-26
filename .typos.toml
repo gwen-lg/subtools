@@ -3,4 +3,4 @@
 subtile = "subtile"
 
 [files]
-extend-exclude = ["CHANGELOG.md"]
+extend-exclude = ["CHANGELOG.md", ".vscode/*"]
