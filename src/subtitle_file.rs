@@ -48,6 +48,15 @@ impl SubtitleFile {
     pub const fn is_text(&self) -> bool {
         self.format.is_text()
     }
+
+    pub fn gen_new_name(&self, pre_ext: &str) -> PathBuf {
+        //TODO: manage lang separate with `.`
+        //TODO: keep
+        let file_stem = self.path.file_stem().unwrap().to_str().unwrap().to_string();
+        let ext = self.path.extension().unwrap().to_str().unwrap();
+        let new_filename = format!("{file_stem}.{pre_ext}.{ext}");
+        self.path.with_file_name(new_filename)
+    }
 }
 
 impl<'a> TryFrom<&'a Path> for SubtitleFile {
