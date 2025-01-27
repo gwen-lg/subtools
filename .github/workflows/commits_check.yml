@@ -27,6 +27,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+# TODO: add check for clippy, test, up-to-date README, typos, ...
   check-push-commits:
     if: github.event_name == 'push'
     strategy:
