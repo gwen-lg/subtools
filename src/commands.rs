@@ -4,4 +4,7 @@ use clap::Subcommand;
 pub enum Commands {
     /// Convert text file to Utf8 char format (including BOM).
     ConvertToUtf8,
+
+    /// Convert image subtitle to text subtitle with Ocr.
+    Ocr,
 }
