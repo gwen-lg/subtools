@@ -27,7 +27,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-# TODO: add check for clippy, test, up-to-date README, typos, ...
+# TODO: add check for up-to-date README, typos, ...
   check-push-commits:
     if: github.event_name == 'push'
     strategy:
@@ -54,4 +54,13 @@ jobs:
           fetch-depth: 0
 
       - name: Cargo fmt
+        if: $${{ always() }}
         run: cargo fmt --check
+
+      - name: Cargo clippy
+        if: $${{ always() }}
+        run: cargo clippy --profile=test
+
+      - name: Cargo test
+        run: cargo test
+
