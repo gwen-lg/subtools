@@ -42,6 +42,9 @@ jobs:
           toolchain : stable
           components: clippy, rustfmt
 
+      - name: Install cargo-readme
+        run: cargo install cargo-readme
+
       - name: "Show environment"
         run: |
           rustc -vV
@@ -52,9 +55,24 @@ jobs:
           ref: ${{ matrix.commit.id }}
           fetch-depth: 0
 
+      - name: Check spelling of entire workspace
+        if: $${{ always() }}
+        uses: crate-ci/typos@master
+
       - name: Cargo fmt
         if: $${{ always() }}
         run: cargo fmt --check
+
+      - name: Check if readme is up to date
+        if: $${{ always() }}
+        run: diff README.md <(cargo readme)
+
+      - name: "Cargo doc"
+        if: $${{ always() }}
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: |
+          cargo doc
 
       - name: Cargo clippy
         if: $${{ always() }}
@@ -83,18 +101,36 @@ jobs:
           rustc -vV
           cargo -vV
 
+      - name: Install cargo-readme
+        run: cargo install cargo-readme
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.commit.id }}
           fetch-depth: 0
 
-      - name: Cargo fmt
+      - name: "Typos: Check spelling of entire workspace"
+        if: $${{ always() }}
+        uses: crate-ci/typos@master
+
+      - name: "Cargo fmt"
         if: $${{ always() }}
         run: cargo fmt --check
 
-      - name: Cargo clippy
+      - name: "Check if README.md is up to date"
+        if: $${{ always() }}
+        run: diff README.md <(cargo readme)
+
+      - name: "Cargo doc"
+        if: $${{ always() }}
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: |
+          cargo doc
+
+      - name: "Cargo clippy"
         if: $${{ always() }}
         run: cargo clippy --profile=test
 
-      - name: Cargo test
+      - name: "Cargo test"
         run: cargo test
