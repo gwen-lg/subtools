@@ -63,3 +63,38 @@ jobs:
       - name: Cargo test
         run: cargo test
 
+  check-pr-commits:
+    if: github.event_name == 'pull_request'
+    strategy:
+      matrix:
+        commit: ${{ github.event.pull_request.commits }}
+
+    name: "Check: ${{ matrix.commit.message }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install rust-toolchain stable"
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain : stable
+          components: clippy, rustfmt
+
+      - name: "Show environment"
+        run: |
+          rustc -vV
+          cargo -vV
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.commit.id }}
+          fetch-depth: 0
+
+      - name: Cargo fmt
+        if: $${{ always() }}
+        run: cargo fmt --check
+
+      - name: Cargo clippy
+        if: $${{ always() }}
+        run: cargo clippy --profile=test
+
+      - name: Cargo test
+        run: cargo test
