@@ -87,6 +87,9 @@ impl SubtitleFile {
         self.format
     }
 
+    /// Generate a name for a new file associated with this.
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
     pub fn gen_new_name(&self, pre_ext: &str) -> PathBuf {
         //TODO: manage lang separate with `.`
         //TODO: keep
