@@ -18,7 +18,13 @@ anyhow = "1.0"
 chardetng = "0.1"
 clap = { version = "4.5", features = ["derive"] }
 encoding_rs = "0.8"
+subtile = "0.4"
+subtile-ocr = "0.2"
 thiserror = "2.0"
+
+[patch.crates-io]
+subtile = { path = "../subtile" }
+subtile-ocr = { path = "../subtile-ocr" }
 
 [lints.rust]
 missing_docs = "warn"
