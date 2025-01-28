@@ -21,6 +21,12 @@ impl SubtitleFormat {
             Self::VobSub | Self::Pgs => false,
         }
     }
+    pub const fn is_image(&self) -> bool {
+        match self {
+            Self::Srt => false,
+            Self::VobSub | Self::Pgs => true,
+        }
+    }
 
     pub fn from_extension(ext: &str) -> Option<Self> {
         match ext {
@@ -47,6 +53,10 @@ impl SubtitleFile {
     /// Indicate if the file correspond to a Subtitle text format.
     pub const fn is_text(&self) -> bool {
         self.format.is_text()
+    }
+    /// Indicate if the file correspond to a Subtitle image format.
+    pub const fn is_image(&self) -> bool {
+        self.format.is_image()
     }
 
     pub fn gen_new_name(&self, pre_ext: &str) -> PathBuf {

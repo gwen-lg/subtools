@@ -3,6 +3,7 @@
 mod commands;
 mod file_encoding;
 mod file_processor;
+mod ocr;
 mod subtitle_file;
 
 use std::{env, ffi::OsString, path::PathBuf};
@@ -12,6 +13,7 @@ use clap::Parser;
 use commands::Commands;
 use file_encoding::convert_subs_to_utf8;
 use file_processor::FileProcessor;
+use ocr::ocr_subs;
 
 /// A CLI application to manipulate subtitles files.
 #[derive(Debug, Parser)]
@@ -40,6 +42,9 @@ fn main() -> anyhow::Result<()> {
     match args.command {
         Commands::ConvertToUtf8 {} => {
             convert_subs_to_utf8(&files_processor);
+        }
+        Commands::Ocr {} => {
+            ocr_subs(&files_processor);
         }
     }
     Ok(())
