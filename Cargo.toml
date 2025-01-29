@@ -22,6 +22,7 @@ subtile-ocr = "0.2"
 thiserror = "2.0"
 
 [patch.crates-io]
+subtile = { path = "../subtile" }
 subtile-ocr = { path = "../subtile-ocr" }
 
 [lints.rust]
