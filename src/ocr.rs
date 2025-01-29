@@ -1,20 +1,14 @@
 use std::{
     fs::File,
-    io::{BufReader, Cursor, Write},
-    str::Utf8Error,
+    io::{self, BufReader, BufWriter},
+    path::PathBuf,
 };
 
-use image::{DynamicImage, GrayImage};
-use leptess::{
-    leptonica,
-    tesseract::{TessInitError, TessSetVariableError},
-    LepTess, Variable,
-};
 use subtile::{
-    image::{luma_a_to_luma, ToOcrImage, ToOcrImageOpt},
-    pgs,
+    image::{self, luma_a_to_luma, ToOcrImage, ToOcrImageOpt},
+    pgs, srt,
     time::TimeSpan,
-    vobsub,
+    vobsub::{self, palette_rgb_to_luminance},
 };
 use thiserror::Error;
 
@@ -25,23 +19,6 @@ use crate::{
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Failed to create Ocr instance with '{data_path}' and '{lang}'")]
-    CreateLepTess {
-        #[source]
-        source: TessInitError,
-        data_path: String,
-        lang: String,
-    },
-
-    #[error("Failed to set variable on `LepTess` instance.")]
-    SetVariable(#[source] TessSetVariableError),
-
-    #[error("Failed to set image for ORC.")]
-    SetImage(#[source] leptonica::PixError),
-
-    #[error("Failed to get text from image.")]
-    GetUtf8Text(#[source] Utf8Error),
-
     #[error("Can't parse Subtitle format '{format}', feature is not implemented")]
     CantParseSubtitleFormat { format: SubtitleFormat },
 
@@ -53,11 +30,27 @@ pub enum Error {
 
     #[error("Failed to parse Pgs")]
     PgsParsing(#[source] pgs::PgsError),
+
+    #[error("Error found in subtitle text.")]
+    CheckSubtitles(#[source] subtile_ocr::Error),
+
+    #[error("TODO")]
+    OcrProcess(#[source] subtile_ocr::OcrError),
+
+    #[error("Failed to create file `{path}` to write to write Srt content.")]
+    CreateOutFileSrt {
+        #[source]
+        source: io::Error,
+        path: PathBuf,
+    },
+
+    #[error("Failed to write srt content to file.")]
+    WriteSrt(#[source] io::Error),
 }
 
+/// Run ocr processing on indicates files.
+#[allow(clippy::missing_panics_doc)] //TODO: replace unwrap by error management
 pub fn ocr_subs(files: &FileProcessor) {
-    let mut tess_wrapper = TessWrapper::new(None, "eng").unwrap(); //TODO: data_path and lang
-
     files
         .subtitle_files()
         .filter_map(|path| SubtitleFile::try_from(path.as_path()).ok())
@@ -69,145 +62,94 @@ pub fn ocr_subs(files: &FileProcessor) {
             if path.exists() {
                 eprintln!("File '{path:?}' already exist, do not override with OCR.");
             } else {
-                ocr_sub(&mut tess_wrapper, sub_file).unwrap();
+                ocr_sub(sub_file).unwrap();
             }
         });
 }
 
-fn ocr_sub(tess: &mut TessWrapper, file: SubtitleFile) -> Result<(), Error> {
+fn ocr_sub(file: SubtitleFile) -> Result<(), Error> {
     let (times, images) = match file.format() {
-        SubtitleFormat::Pgs => {
-            let parser = {
-                pgs::SupParser::<BufReader<File>, pgs::DecodeTimeImage>::from_file(&file.path())
-                    .map_err(Error::PgsParserFromFile)?
-            };
-
-            let (times, rle_images) = {
-                parser
-                    .collect::<Result<(Vec<_>, Vec<_>), _>>()
-                    .map_err(Error::PgsParsing)?
-            };
-            let conv_fn = luma_a_to_luma::<_, _, 100, 100>; // Hardcoded value for alpha and luma threshold than work not bad.
-
-            let images = {
-                let ocr_opt = ToOcrImageOpt::default(); //TODO: allow customisation
-                rle_images
-                    .iter()
-                    .map(|rle_img| pgs::RleToImage::new(rle_img, &conv_fn).image(&ocr_opt))
-                    .collect::<Vec<_>>()
-            };
-
-            (times, images)
-        }
-        SubtitleFormat::VobSub => {
-            let idx = { vobsub::Index::open(&file.path()).map_err(Error::IndexOpen)? };
-            let (times, images): (Vec<_>, Vec<_>) = {
-                idx.subtitles::<(TimeSpan, vobsub::VobSubIndexedImage)>()
-                    .filter_map(|sub| match sub {
-                        Ok(sub) => Some(sub),
-                        Err(e) => {
-                            eprintln!(
-            "warning: unable to read subtitle: {e}. (This can usually be safely ignored.)"
-        );
-                            None
-                        }
-                    })
-                    .unzip()
-            };
-            let images_for_ocr = {
-                let ocr_opt = ToOcrImageOpt::default(); //TODO: allow customisation
-                let palette = rgb_palette_to_luminance(idx.palette());
-                images
-                    .iter()
-                    .map(|vobsub_img| {
-                        let converter = vobsub::VobSubOcrImage::new(vobsub_img, &palette);
-                        converter.image(&ocr_opt)
-                    })
-                    .collect::<Vec<_>>()
-            };
-
-            (times, images_for_ocr)
-        }
+        SubtitleFormat::VobSub => parse_vobsub(&file)?,
+        SubtitleFormat::Pgs => parse_pgs(&file)?,
         _ => {
             return Err(Error::CantParseSubtitleFormat {
                 format: file.format(),
             })
         }
     };
+    //TODO: &opt.tessdata_dir, opt.lang.as_str(), &opt.config, opt.dpi
+    let ocr_variable = Vec::new();
+    let ocr_opt = subtile_ocr::OcrOpt::new(&None, "eng", &ocr_variable, 150);
+    let texts = subtile_ocr::process(images, &ocr_opt).map_err(Error::OcrProcess)?;
+    let subtitles = subtile_ocr::check_subtitles(times.into_iter().zip(texts))
+        .map_err(Error::CheckSubtitles)?;
 
-    let texts = images
-        .into_iter()
-        .map(|image| {
-            let text = tess.text_from_image(image, 150);
-            text //TODO: use configurable dpi
-        })
-        .collect::<Vec<_>>();
-
-    //TODO: write file in path
-    let mut file = File::create(path).unwrap();
-    file.write_all("TODO".as_bytes()).unwrap();
+    // Create subtitle file.
+    let mut path_out = file.path().to_path_buf();
+    path_out.set_extension("srt");
+    let subtitle_file =
+        File::create(path_out.as_path()).map_err(|source| Error::CreateOutFileSrt {
+            source,
+            path: path_out,
+        })?;
+    let mut stream = BufWriter::new(subtitle_file);
+    // Write to file.
+    srt::write_srt(&mut stream, &subtitles).map_err(Error::WriteSrt)?;
 
     Ok(())
 }
 
-/// Convert an sRGB palette to a luminance palette.
-#[must_use]
-pub fn rgb_palette_to_luminance(palette: &vobsub::Palette) -> [f32; 16] {
-    palette.map(|x| {
-        let r = srgb_to_linear(x[0]);
-        let g = srgb_to_linear(x[1]);
-        let b = srgb_to_linear(x[2]);
-        0.2126 * r + 0.7152 * g + 0.0722 * b
-    })
+type ParseResult = (Vec<TimeSpan>, Vec<image::GrayImage>);
+
+fn parse_vobsub(file: &SubtitleFile) -> Result<ParseResult, Error> {
+    let mut idx_path = file.path().to_path_buf();
+    idx_path.set_extension("idx");
+    let idx = vobsub::Index::open(idx_path).map_err(Error::IndexOpen)?;
+
+    let (times, images): (Vec<_>, Vec<_>) = {
+        idx.subtitles::<(TimeSpan, vobsub::VobSubIndexedImage)>()
+            .filter_map(|sub| match sub {
+                Ok(sub) => Some(sub),
+                Err(e) => {
+                    eprintln!(
+    "warning: unable to read subtitle: {e}. (This can usually be safely ignored.)"
+            );
+                    None
+                }
+            })
+            .unzip()
+    };
+    let images_for_ocr = {
+        let ocr_opt = ToOcrImageOpt::default(); //TODO: allow customisation
+        let palette = palette_rgb_to_luminance(idx.palette());
+        images
+            .iter()
+            .map(|vobsub_img| {
+                let converter = vobsub::VobSubOcrImage::new(vobsub_img, &palette);
+                converter.image(&ocr_opt)
+            })
+            .collect::<Vec<_>>()
+    };
+    Ok((times, images_for_ocr))
 }
 
-/// Convert an sRGB color space channel to linear.
-fn srgb_to_linear(channel: u8) -> f32 {
-    let value = f32::from(channel) / 255.0;
-    if value <= 0.04045 {
-        value / 12.92
-    } else {
-        ((value + 0.055) / 1.055).powf(2.4)
-    }
-}
-
-struct TessWrapper(LepTess);
-
-impl TessWrapper {
-    fn new(data_path: Option<&str>, lang: impl AsRef<str>) -> Result<Self, Error> {
-        let lep_tess =
-            LepTess::new(data_path, lang.as_ref()).map_err(|source| Error::CreateLepTess {
-                source,
-                data_path: data_path.unwrap_or("<None>").into(),
-                lang: lang.as_ref().into(),
-            })?;
-        //Set default config
-
-        Ok(Self(lep_tess))
-    }
-
-    fn set_config(&mut self, config: &[(Variable, String)]) -> Result<(), Error> {
-        for (key, value) in config {
-            self.0
-                .set_variable(*key, value)
-                .map_err(Error::SetVariable)?;
-        }
-        Ok(())
-    }
-
-    fn text_from_image(&mut self, image: GrayImage, dpi: i32) -> Result<String, Error> {
-        let bytes = {
-            //profiling::scope!("TesseractWrapper Pnm create");
-            let mut bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-            DynamicImage::ImageLuma8(image).write_to(&mut bytes, image::ImageFormat::Pnm)?;
-            bytes
-        };
-        self.0
-            .set_image_from_mem(bytes.get_ref())
-            .map_err(Error::SetImage)?;
-        self.0.set_source_resolution(dpi);
-
-        let text = self.0.get_utf8_text().map_err(Error::GetUtf8Text)?;
-        Ok(text)
-    }
+fn parse_pgs(file: &SubtitleFile) -> Result<ParseResult, Error> {
+    let parser = {
+        pgs::SupParser::<BufReader<File>, pgs::DecodeTimeImage>::from_file(file.path())
+            .map_err(Error::PgsParserFromFile)?
+    };
+    let (times, rle_images) = {
+        parser
+            .collect::<Result<(Vec<_>, Vec<_>), _>>()
+            .map_err(Error::PgsParsing)?
+    };
+    let conv_fn = luma_a_to_luma::<_, _, 100, 100>;
+    let images = {
+        let ocr_opt = ToOcrImageOpt::default(); //TODO: allow customisation
+        rle_images
+            .iter()
+            .map(|rle_img| pgs::RleToImage::new(rle_img, &conv_fn).image(&ocr_opt))
+            .collect::<Vec<_>>()
+    };
+    Ok((times, images))
 }
