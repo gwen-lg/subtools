@@ -1,6 +1,10 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 /// Enumeration of different recognized subtitles file formats.
+#[derive(Clone, Copy, Debug)]
 pub enum SubtitleFormat {
     /// Subrip
     /// File extension : `.srt`
@@ -15,13 +19,13 @@ pub enum SubtitleFormat {
 
 impl SubtitleFormat {
     /// Indicate if the format is base on text (unlike binary format)
-    pub const fn is_text(&self) -> bool {
+    pub const fn is_text(self) -> bool {
         match self {
             Self::Srt => true,
             Self::VobSub | Self::Pgs => false,
         }
     }
-    pub const fn is_image(&self) -> bool {
+    pub const fn is_image(self) -> bool {
         match self {
             Self::Srt => false,
             Self::VobSub | Self::Pgs => true,
@@ -35,6 +39,12 @@ impl SubtitleFormat {
             "sup" => Some(Self::Pgs),
             _ => None,
         }
+    }
+}
+
+impl fmt::Display for SubtitleFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
     }
 }
 
@@ -57,6 +67,9 @@ impl SubtitleFile {
     /// Indicate if the file correspond to a Subtitle image format.
     pub const fn is_image(&self) -> bool {
         self.format.is_image()
+    }
+    pub const fn format(&self) -> SubtitleFormat {
+        self.format
     }
 
     pub fn gen_new_name(&self, pre_ext: &str) -> PathBuf {
