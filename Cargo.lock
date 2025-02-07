@@ -516,6 +516,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
 
 [[package]]
+name = "matroska-demuxer"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "329a4d8d9b4366dd12dcc99c8916f08a011a7a48aab40b5dcaead6174c8e7a90"
+
+[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -817,6 +823,7 @@ dependencies = [
  "chardetng",
  "clap",
  "encoding_rs",
+ "matroska-demuxer",
  "subtile",
  "subtile-ocr",
  "thiserror 2.0.11",
