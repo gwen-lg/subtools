@@ -25,6 +25,7 @@ thiserror = "2.0"
 [patch.crates-io]
 subtile = { path = "../subtile" }
 subtile-ocr = { path = "../subtile-ocr" }
+matroska-demuxer = { path = "../../_crates/matroska-demuxer" }
 
 [lints.rust]
 missing_docs = "deny"
