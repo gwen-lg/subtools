@@ -12,6 +12,7 @@ use std::{env, ffi::OsString, path::PathBuf};
 use anyhow::Context;
 use clap::Parser;
 use commands::Commands;
+use extract::extract_subs;
 use file_encoding::convert_subs_to_utf8;
 use file_processor::FileProcessor;
 use ocr::ocr_subs;
@@ -47,7 +48,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Ocr {} => {
             ocr_subs(&files_processor);
         }
-        Commands::Extract {} => {}
+        Commands::Extract {} => {
+            extract_subs(&files_processor);
+        }
     }
     Ok(())
 }
