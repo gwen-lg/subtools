@@ -1,6 +1,7 @@
 //! `subtools` is a command line app to check and manipulate subtitles.
 
 mod commands;
+mod extract;
 mod file_encoding;
 mod file_processor;
 mod ocr;
@@ -46,6 +47,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Ocr {} => {
             ocr_subs(&files_processor);
         }
+        Commands::Extract {} => {}
     }
     Ok(())
 }
