@@ -1,6 +1,7 @@
 //! `subtools` is a library line app to check and manipulate subtitles.
 //! A command line utilities is also provided.
 
+mod extract;
 mod file_encoding;
 mod file_processor;
 mod ocr;
