@@ -7,4 +7,7 @@ pub enum Commands {
 
     /// Convert image subtitle to text subtitle with Ocr.
     Ocr,
+
+    /// Extract subtitle track
+    Extract,
 }
