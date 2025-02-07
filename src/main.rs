@@ -36,6 +36,7 @@ fn main() -> anyhow::Result<()> {
             let proc_ctx = app_ctx.create_sub_process("Convert subtitles binary files to UTF-8");
             ocr_subs(proc_ctx, &files_processor);
         }
+        Commands::Extract => {}
     }
     Ok(())
 }
