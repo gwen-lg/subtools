@@ -39,7 +39,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Ocr => {
             ocr_subs(&files_processor);
         }
-        Commands::Extract => {}
+        Commands::Extract => {
+            extract_subs(&files_processor);
+        }
     }
     Ok(())
 }
