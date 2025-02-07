@@ -13,6 +13,7 @@ pub use app_context::{
     AppContext, IterProcessing, ProcErrLogger, ProcessingContext, ProcessingContextIter,
     ProcessingProgress, SubProcess,
 };
+pub use extract::extract_subs;
 pub use file_encoding::convert_subs_to_utf8;
 pub use file_processor::FileProcessor;
 pub use ocr::ocr_subs;
