@@ -1,6 +1,6 @@
 use crate::file_processor::FileProcessor;
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
-use std::{fs::File, str};
+use std::{fs::File, io::BufReader, str};
 
 /// Extract subtitles from indicated files.
 pub fn extract_subs(files: &FileProcessor) {
@@ -16,10 +16,11 @@ pub fn extract_subs(files: &FileProcessor) {
 
 fn extract_subs_mkv(path: std::path::PathBuf) {
     let file = File::open(path.as_path()).unwrap();
+    let file = BufReader::new(file);
     let mut mkv = MatroskaFile::open(file).unwrap();
 
-    let info = mkv.info();
-    println!("Media `{path:?}` :\n{info:#?}");
+    //let info = mkv.info();
+    //println!("Media `{path:?}` :\n{info:#?}");
 
     let tracks = mkv.tracks();
     let subtile_tracks = tracks
@@ -34,13 +35,25 @@ fn extract_subs_mkv(path: std::path::PathBuf) {
             );
         })
         .filter(|track| track.codec_id() == "S_TEXT/UTF8")
-        .map(|track| track.track_number().get())
+        .map(|track| {
+            let track_num = track.track_number().get();
+            let default_duration = track.default_duration();
+            (track_num, default_duration)
+        })
         .collect::<Vec<_>>();
 
     let mut frame = Frame::default();
     while mkv.next_frame(&mut frame).unwrap() {
-        if subtile_tracks.contains(&frame.track) {
-            let duration = frame.duration.unwrap_or_default();
+        if let Some((_, default_duration)) = subtile_tracks
+            .iter()
+            .find(|(track_idx, _)| *track_idx == frame.track)
+        //.map(|(_, duration)| duration.map(|val| val.get()))
+        {
+            let default_duration = default_duration.map(|val| val.get());
+            let duration = frame
+                .duration
+                .or(default_duration)
+                .expect("no duration or default duration");
             let frame_content = str::from_utf8(&frame.data).unwrap();
             println!(
                 "{}-{}>{duration}:\n{frame_content}",

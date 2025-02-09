@@ -7,6 +7,7 @@ mod file_processor;
 mod ocr;
 mod subtitle_file;
 
+pub use extract::extract_subs;
 pub use file_encoding::convert_subs_to_utf8;
 pub use file_processor::FileProcessor;
 pub use ocr::ocr_subs;

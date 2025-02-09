@@ -6,7 +6,7 @@ use anyhow::Context;
 use clap::Parser;
 use commands::Commands;
 use std::{env, ffi::OsString, path::PathBuf};
-use subtools::{convert_subs_to_utf8, ocr_subs, FileProcessor};
+use subtools::{convert_subs_to_utf8, extract_subs, ocr_subs, FileProcessor};
 
 /// A CLI application to manipulate subtitles files.
 #[derive(Debug, Parser)]
