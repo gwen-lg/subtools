@@ -2,7 +2,15 @@ use crate::{
     IterProcessing, ProcessingContext, SubProcess, file_processor::FileProcessor, matroska::CodecId,
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
-use std::{cell::RefCell, fs::File, io::Write, path::PathBuf, rc::Rc, str};
+use std::{
+    cell::RefCell,
+    fs::File,
+    io::{BufReader, Write},
+    num::NonZero,
+    path::Path,
+    rc::Rc,
+    str,
+};
 
 /// Extract subtitles from indicated files.
 pub fn extract_subs(proc_ctx: ProcessingContext, files: &FileProcessor) {
@@ -18,13 +26,14 @@ pub fn extract_subs(proc_ctx: ProcessingContext, files: &FileProcessor) {
         });
 }
 
-fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &PathBuf) {
+fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &Path) {
     let filename = path.file_name().unwrap();
     let cur_ctx = Rc::new(RefCell::new(
         proc_ctx.create_sub_process(format!("Extract sub for {}", filename.display())),
     ));
 
-    let file = File::open(path.as_path()).unwrap();
+    let file = File::open(path).unwrap();
+    let file = BufReader::new(file);
     let mut mkv = MatroskaFile::open(file).unwrap();
 
     let info = mkv.info();
@@ -49,13 +58,24 @@ fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &PathBuf) {
             CodecId::try_from(track.codec_id()).map_or(None, |codec| Some((codec, track)))
         })
         .filter(|(codec, _)| codec.id_str() == "S_TEXT/UTF8")
-        .map(|(_, track)| track.track_number().get())
+        .map(|(_, track)| {
+            let track_num = track.track_number().get();
+            let default_duration = track.default_duration();
+            (track_num, default_duration)
+        })
         .collect::<Vec<_>>();
 
     let mut frame = Frame::default();
     while mkv.next_frame(&mut frame).unwrap() {
-        if subtile_tracks.contains(&frame.track) {
-            let duration = frame.duration.unwrap_or_default();
+        if let Some((_, default_duration)) = subtile_tracks
+            .iter()
+            .find(|(track_idx, _)| *track_idx == frame.track)
+        {
+            let default_duration = default_duration.map(NonZero::get);
+            let duration = frame
+                .duration
+                .or(default_duration)
+                .expect("no duration or default duration");
             let frame_content = str::from_utf8(&frame.data).unwrap();
             println!(
                 "{}-{}>{duration}:\n{frame_content}",
