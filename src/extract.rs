@@ -1,7 +1,10 @@
 use crate::{
     IterProcessing, ProcessingContext, SubProcess,
     file_processor::FileProcessor,
-    matroska::{CodecId, ContentDecoder, FrameHandler, PgsFrameHandler, SrtWriter, WebvttWriter},
+    matroska::{
+        CodecId, ContentDecoder, FrameHandler, PgsFrameHandler, SrtWriter, VobSubFrameHandler,
+        WebvttWriter,
+    },
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
 use std::{
@@ -129,6 +132,7 @@ fn create_frame_decoder(
             file.write_all(&crate::file_encoding::UTF8_BOM).unwrap();
             Box::new(SrtWriter::new(file))
         }
+        CodecId::VobSub => Box::new(VobSubFrameHandler::new(track.codec_private().unwrap())),
         CodecId::WebVTT => {
             //TODO: manage track data
             filename.set_extension("vtt");

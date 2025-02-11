@@ -4,12 +4,14 @@ mod codec_id;
 mod content;
 mod pgs;
 mod subrip;
+mod vobsub;
 mod webvtt;
 
 pub use codec_id::CodecId;
 pub(crate) use content::ContentDecoder;
 pub use pgs::PgsFrameHandler;
 pub use subrip::SrtWriter;
+pub use vobsub::VobSubFrameHandler;
 pub use webvtt::WebvttWriter;
 
 use compact_str::CompactString;
