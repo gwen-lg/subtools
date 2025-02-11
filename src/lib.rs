@@ -5,6 +5,7 @@ mod app_context;
 mod extract;
 mod file_encoding;
 mod file_processor;
+pub mod matroska; //TODO: move in a crate (subtile ? or subtile-matroska ?)
 mod ocr;
 mod subtitle_file;
 
