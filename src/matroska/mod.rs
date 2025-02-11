@@ -2,10 +2,12 @@
 
 mod codec_id;
 mod subrip;
+mod vobsub;
 mod webvtt;
 
 pub use codec_id::CodecId;
 pub use subrip::SrtWriter;
+pub use vobsub::VobSubDecoder;
 pub use webvtt::WebvttWriter;
 
 use subtile::time::TimeSpan;
