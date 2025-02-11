@@ -1,8 +1,10 @@
 //! specific code for matroska subtitle management
 
 mod codec_id;
+mod subrip;
 
 pub use codec_id::CodecId;
+pub use subrip::SrtWriter;
 
 use subtile::time::{TimePoint, TimeSpan};
 
