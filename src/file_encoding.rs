@@ -8,7 +8,7 @@ use encoding_rs::{CoderResult, Encoding};
 
 use crate::{file_processor::FileProcessor, subtitle_file::SubtitleFile};
 
-const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
+pub const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 
 ///TODO: report error in a context
 pub fn convert_subs_to_utf8(files: &FileProcessor) {
