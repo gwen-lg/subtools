@@ -1,15 +1,16 @@
 use crate::{
-    IterProcessing, ProcessingContext, SubProcess, file_processor::FileProcessor, matroska::CodecId,
+    IterProcessing, ProcessingContext, SubProcess,
+    file_processor::FileProcessor,
+    matroska::{CodecId, FrameHandler, SrtWriter, WebvttWriter},
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
 use std::{
     cell::RefCell,
     fs::File,
-    io::{BufReader, Write},
+    io::{BufReader, BufWriter, Write},
     num::NonZero,
-    path::Path,
+    path::{Path, PathBuf},
     rc::Rc,
-    str,
 };
 
 /// Extract subtitles from indicated files.
@@ -39,8 +40,13 @@ fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &Path) {
     let info = mkv.info();
     writeln!(cur_ctx.borrow_mut(), "Media `{path:?}` :\n{info:#?}").unwrap();
 
+    let timestamp_scale = mkv.info().timestamp_scale();
+    assert!(timestamp_scale == NonZero::new(1_000_000).unwrap());
+
+    let filestem = path.file_stem().unwrap().to_string_lossy();
+
     let tracks = mkv.tracks();
-    let subtile_tracks = tracks
+    let (subtile_track_idx, mut tracks_info) = tracks
         .iter()
         .filter(|track| track.track_type() == TrackType::Subtitle)
         .include_context(cur_ctx.clone())
@@ -57,30 +63,66 @@ fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &Path) {
         .filter_map(|(_ctx, track)| {
             CodecId::try_from(track.codec_id()).map_or(None, |codec| Some((codec, track)))
         })
-        .filter(|(codec, _)| codec.id_str() == "S_TEXT/UTF8")
-        .map(|(_, track)| {
+        .map(|(codec, track)| {
             let track_num = track.track_number().get();
             let default_duration = track.default_duration();
-            (track_num, default_duration)
+            let lang = track
+                .language()
+                .map_or_else(|| "".into(), |lang| format!(".{lang}"));
+
+            let filename = PathBuf::from(format!("{filestem}.{track_num}-{lang}.tmp"));
+            let decoder = create_frame_decoder(track, codec, filename);
+            (track_num, (decoder, default_duration))
         })
-        .collect::<Vec<_>>();
+        .unzip::<_, _, Vec<_>, Vec<_>>();
 
     let mut frame = Frame::default();
     while mkv.next_frame(&mut frame).unwrap() {
-        if let Some((_, default_duration)) = subtile_tracks
-            .iter()
-            .find(|(track_idx, _)| *track_idx == frame.track)
+        if let Some(select_idx) =
+            subtile_track_idx
+                .iter()
+                .enumerate()
+                .find_map(|(select_idx, track_idx)| {
+                    if *track_idx == frame.track {
+                        Some(select_idx)
+                    } else {
+                        None
+                    }
+                })
+        //.map(|(_, duration)| duration.map(|val| val.get()))
         {
+            let (decoder, default_duration) = &mut tracks_info[select_idx];
             let default_duration = default_duration.map(NonZero::get);
-            let duration = frame
-                .duration
-                .or(default_duration)
-                .expect("no duration or default duration");
-            let frame_content = str::from_utf8(&frame.data).unwrap();
-            println!(
-                "{}-{}>{duration}:\n{frame_content}",
-                frame.track, frame.timestamp
-            );
+            let duration = frame.duration.or(default_duration);
+            assert!(i64::try_from(frame.timestamp).is_ok());
+
+            decoder.push_frame(frame.timestamp, duration, &frame.data);
+        }
+    }
+}
+
+fn create_frame_decoder(
+    track: &matroska_demuxer::TrackEntry,
+    codec: CodecId,
+    mut filename: PathBuf,
+) -> Box<dyn FrameHandler> {
+    match codec {
+        CodecId::SubRip => {
+            filename.set_extension("srt");
+            let mut file = BufWriter::new(File::create(filename).unwrap());
+            //TODO: write BOM in SrtWriter ?
+            file.write_all(&crate::file_encoding::UTF8_BOM).unwrap();
+            Box::new(SrtWriter::new(file))
+        }
+        CodecId::WebVTT => {
+            //TODO: manage track data
+            filename.set_extension("vtt");
+            let file = BufWriter::new(File::create(filename).unwrap());
+            let codec_private = track.codec_private();
+            Box::new(WebvttWriter::new(file, codec_private))
+        }
+        _ => {
+            todo!()
         }
     }
 }
