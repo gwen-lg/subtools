@@ -1,22 +1,12 @@
-//! `subtools` is a command line app to check and manipulate subtitles.
-
-mod commands;
-mod extract;
-mod file_encoding;
-mod file_processor;
-pub mod matroska; //TODO: move in a crate (subtile ? or subtile-matroska ?)
-mod ocr;
-mod subtitle_file;
+//! A command line utilities to test and use subtools functionalities.
 
 use std::{env, ffi::OsString, path::PathBuf};
 
 use anyhow::Context;
 use clap::Parser;
 use commands::Commands;
-use extract::extract_subs;
-use file_encoding::convert_subs_to_utf8;
-use file_processor::FileProcessor;
-use ocr::ocr_subs;
+use subtools::{convert_subs_to_utf8, extract_subs, ocr_subs, FileProcessor};
+mod commands;
 
 /// A CLI application to manipulate subtitles files.
 #[derive(Debug, Parser)]
