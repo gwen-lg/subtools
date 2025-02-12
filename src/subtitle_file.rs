@@ -15,19 +15,22 @@ pub enum SubtitleFormat {
     /// HDMV PGS,
     /// File extension : `.sup`
     Pgs,
+    /// `Web Video Text Tracks` subtitle format used by `<track>` of HTML.
+    /// File extension : `.vtt`
+    WebVtt,
 }
 
 impl SubtitleFormat {
     /// Indicate if the format is base on text (unlike binary format)
     pub const fn is_text(self) -> bool {
         match self {
-            Self::Srt => true,
+            Self::Srt | Self::WebVtt => true,
             Self::VobSub | Self::Pgs => false,
         }
     }
     pub const fn is_image(self) -> bool {
         match self {
-            Self::Srt => false,
+            Self::Srt | Self::WebVtt => false,
             Self::VobSub | Self::Pgs => true,
         }
     }
@@ -37,6 +40,7 @@ impl SubtitleFormat {
             "srt" => Some(Self::Srt),
             "sub" => Some(Self::VobSub),
             "sup" => Some(Self::Pgs),
+            "vtt" => Some(Self::WebVtt),
             _ => None,
         }
     }
