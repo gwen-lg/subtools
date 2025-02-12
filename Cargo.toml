@@ -17,7 +17,7 @@ anyhow = "1.0"
 chardetng = "0.1"
 clap = { version = "4.5", features = ["derive"] }
 encoding_rs = "0.8"
-matroska-demuxer = "0.5.0"
+matroska-demuxer = "0.6.0"
 subtile = "0.3"
 subtile-ocr = "0.2"
 thiserror = "2.0"
@@ -25,7 +25,7 @@ thiserror = "2.0"
 [patch.crates-io]
 subtile = { path = "../subtile" }
 subtile-ocr = { path = "../subtile-ocr" }
-matroska-demuxer = { path = "../../_crates/matroska-demuxer" }
+# matroska-demuxer = { path = "../../_crates/matroska-demuxer" }
 
 [lints.rust]
 missing_docs = "deny"

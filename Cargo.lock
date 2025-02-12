@@ -517,7 +517,9 @@ checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
 
 [[package]]
 name = "matroska-demuxer"
-version = "0.5.0"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d62ca6ff378b07542b477763bea55c3540733fc2db537a0caa45cd5ea2c59f6"
 
 [[package]]
 name = "memchr"
