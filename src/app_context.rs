@@ -114,6 +114,7 @@ pub struct ProcessingProgress {
     progress: Progress,
 }
 
+/// TODO: describe
 /// TODO: add time management ?
 impl ProcessingProgress {
     /// Create a `ProcessingProgress` for a number of elements.
