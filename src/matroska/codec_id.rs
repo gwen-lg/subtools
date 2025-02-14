@@ -35,6 +35,9 @@ impl TryFrom<&str> for CodecId {
     }
 }
 
+/// TODO: use SubtitleFormat as base of CodecId
+//impl From<SubtitleFormat> for CodecId {}
+
 const CODECID_VOBSUB: &str = "S_VOBSUB";
 const CODECID_PGS: &str = "S_HDMV/PGS";
 const CODECID_SUBRIP: &str = "S_TEXT/UTF8";
