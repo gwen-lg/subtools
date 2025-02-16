@@ -6,9 +6,10 @@ use std::{
     borrow::Borrow,
     env,
     ffi::OsString,
+    io::Write,
     path::{Path, PathBuf},
 };
-use subtools::{FileProcessor, SubtitleFile};
+use subtools::{AppContext, FileProcessor, ProcessingContext, SubProcess, SubtitleFile};
 
 /// A CLI application to manipulate subtitles files.
 #[derive(Debug, Parser)]
@@ -21,25 +22,34 @@ struct Cli {
 }
 
 fn main() -> anyhow::Result<()> {
+    let app_ctx = AppContext::new();
     let args = Cli::parse();
 
     let working_path = get_working_path(&args)?;
     let files_processor = FileProcessor::from_path(working_path);
-    files_processor.subtitle_files().for_each(check_file);
+
+    let mut proc_ctx = app_ctx.create_sub_process("Check files");
+    files_processor
+        .subtitle_files()
+        .for_each(|file| check_file(&mut proc_ctx, file));
     Ok(())
 }
 
-fn check_file<F>(file: F)
+fn check_file<F>(proc_ctx: &mut ProcessingContext, file: F)
 where
     F: Borrow<Path>,
 {
     let file = file.borrow();
     match SubtitleFile::try_from(file) {
         Ok(subfile) => {
-            eprintln!("{file:?} is recognized as {}", subfile.format());
+            writeln!(proc_ctx, "{file:?} is recognized as {}", subfile.format()).unwrap();
         }
         Err(err) => {
-            eprintln!("{file:?} is not a recognized subtitle file : {err:?}");
+            writeln!(
+                proc_ctx,
+                "{file:?} is not a recognized subtitle file : {err:?}"
+            )
+            .unwrap();
         }
     }
 }
