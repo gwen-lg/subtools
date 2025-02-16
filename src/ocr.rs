@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{self, BufReader, BufWriter},
+    io::{self, BufReader, BufWriter, Write},
     path::PathBuf,
 };
 
@@ -71,7 +71,7 @@ pub fn ocr_subs(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
 
 fn ocr_sub(proc_ctx: &mut ProcessingCtx, file: SubtitleFile) -> Result<(), Error> {
     let filename = file.filename().unwrap();
-    writeln!(proc_ctx.writer(), "Ocr sub for {filename:?}").unwrap();
+    writeln!(proc_ctx, "Ocr sub for {filename:?}").unwrap();
 
     let (times, images) = match file.format() {
         SubtitleFormat::VobSub => parse_vobsub(&file)?,

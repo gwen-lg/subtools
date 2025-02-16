@@ -29,7 +29,7 @@ pub fn extract_subs(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
 }
 
 fn extract_subs_mkv(proc_ctx: &mut ProcessingCtx, path: std::path::PathBuf) {
-    writeln!(proc_ctx.writer(), "Extract sub for {path:?}").unwrap();
+    writeln!(proc_ctx, "Extract sub for {path:?}").unwrap();
 
     let file = File::open(path.as_path()).unwrap();
     let file = BufReader::new(file);
