@@ -6,13 +6,13 @@ use std::{
 use chardetng::EncodingDetector;
 use encoding_rs::{CoderResult, Encoding};
 
-use crate::{file_processor::FileProcessor, subtitle_file::SubtitleFile, ProcessingCtx};
+use crate::{file_processor::FileProcessor, subtitle_file::SubtitleFile, ProcessingContext};
 
 pub const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 
 ///TODO: report error in a context
 #[allow(clippy::missing_panics_doc)]
-pub fn convert_subs_to_utf8(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
+pub fn convert_subs_to_utf8(mut proc_ctx: ProcessingContext, files: &FileProcessor) {
     let ctx = &mut proc_ctx;
     files
         .subtitle_files()
@@ -31,7 +31,7 @@ pub fn convert_subs_to_utf8(mut proc_ctx: ProcessingCtx, files: &FileProcessor) 
         });
 }
 
-fn convert_file_to_utf8(proc_ctx: &mut ProcessingCtx, sub_file: &SubtitleFile, file: File) {
+fn convert_file_to_utf8(proc_ctx: &mut ProcessingContext, sub_file: &SubtitleFile, file: File) {
     let filename = sub_file.filename().unwrap();
     writeln!(proc_ctx, "convert {filename:?}").unwrap();
 

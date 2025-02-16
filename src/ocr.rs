@@ -15,7 +15,7 @@ use thiserror::Error;
 use crate::{
     file_processor::FileProcessor,
     subtitle_file::{SubtitleFile, SubtitleFormat},
-    ProcessingCtx,
+    ProcessingContext,
 };
 
 #[derive(Debug, Error)]
@@ -51,7 +51,7 @@ pub enum Error {
 
 /// Run ocr processing on indicates files.
 #[allow(clippy::missing_panics_doc)] //TODO: replace unwrap by error management
-pub fn ocr_subs(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
+pub fn ocr_subs(mut proc_ctx: ProcessingContext, files: &FileProcessor) {
     let ctx = &mut proc_ctx;
     files
         .subtitle_files()
@@ -69,7 +69,7 @@ pub fn ocr_subs(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
         });
 }
 
-fn ocr_sub(proc_ctx: &mut ProcessingCtx, file: SubtitleFile) -> Result<(), Error> {
+fn ocr_sub(proc_ctx: &mut ProcessingContext, file: SubtitleFile) -> Result<(), Error> {
     let filename = file.filename().unwrap();
     writeln!(proc_ctx, "Ocr sub for {filename:?}").unwrap();
 
