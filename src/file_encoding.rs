@@ -32,7 +32,7 @@ pub fn convert_subs_to_utf8(mut proc_ctx: ProcessingCtx, files: &FileProcessor) 
 
 fn convert_file_to_utf8(proc_ctx: &mut ProcessingCtx, sub_file: &SubtitleFile, file: File) {
     let filename = sub_file.filename().unwrap();
-    writeln!(proc_ctx.writer(), "convert {filename:?}").unwrap();
+    writeln!(proc_ctx, "convert {filename:?}").unwrap();
 
     let mut reader = BufReader::new(file);
 
