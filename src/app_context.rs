@@ -7,8 +7,36 @@ use std::io::{self, Write};
 /// Store the context elements.
 pub struct ProcessingContext {
     logger: Box<dyn Write>,
+    progress: Option<ProcessingProgress>,
     name: String,
     level: u8,
+}
+
+impl ProcessingContext {
+    ///TODO: Init the progress info for this `ProcessingContext`.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if a progress was already initialized.
+    pub fn init_progress(&mut self, progress: ProcessingProgress) {
+        self.progress
+            .replace(progress)
+            .ok_or(())
+            .expect_err("A progress was already initialized.");
+    }
+
+    fn from_level(name: impl Into<String>, level: u8) -> Self {
+        // Create a new `ProcessingContext` than write info in stderr
+        let mut logger = ProcErrLogger::with_level(level);
+        let name = name.into();
+        writeln!(logger, "New processing created : {name}",).unwrap();
+        Self {
+            logger: Box::new(logger),
+            progress: None,
+            name,
+            level: 0,
+        }
+    }
 }
 
 impl io::Write for ProcessingContext {
@@ -31,13 +59,7 @@ impl SubProcess for ProcessingContext {
     /// Get access to writer to allow writing log
     fn create_sub_process(&self, name: impl Into<String>) -> ProcessingContext {
         let level = self.level + 1;
-        Self {
-            //app_ctx: self.app_ctx,
-            logger: Box::new(ProcErrLogger::with_level(level)),
-            //parent: Some(&self),
-            name: name.into(),
-            level,
-        }
+        Self::from_level(name, level)
     }
 }
 
@@ -47,18 +69,90 @@ pub trait SubProcess {
     fn create_sub_process(&self, name: impl Into<String>) -> ProcessingContext;
 }
 
-pub struct ProgressInit {
-    pub start: u32,
-    pub end: u32,
+/// TODO
+#[derive(Debug, Clone, Copy)]
+pub enum Progress {
+    Factor { current: f32 },
+    Count { current: usize, end: usize },
 }
 
-/// TODO: describe
-pub trait ProcessingProgress {
-    //fn init(start: u32, end: u32);
-    ///TODO: describe
-    fn update_progress(&self, progress: f32);
-    // /// Indicate than the processing is ended
-    //fn end();
+/// TODO
+#[derive(Debug)]
+pub struct ProcessingProgress {
+    progress: Progress,
+}
+
+/// TODO: add time management ?
+impl ProcessingProgress {
+    /// Create a `ProcessingProgress` for a number of elements.
+    #[must_use]
+    pub const fn from_count(nb_element: usize) -> Self {
+        Self {
+            progress: Progress::Count {
+                current: 0,
+                end: nb_element,
+            },
+        }
+    }
+
+    /// Create a `ProcessingProgress` for a factor management.
+    #[must_use]
+    pub const fn factor() -> Self {
+        Self {
+            progress: Progress::Factor { current: 0. },
+        }
+    }
+
+    /// Get the progress, can be used for display
+    #[must_use]
+    pub const fn progress(&self) -> Progress {
+        self.progress
+    }
+
+    /// Indicate than the process is finished
+    #[must_use]
+    pub fn is_finished(&self) -> bool {
+        match self.progress {
+            Progress::Factor { current } => current >= 1.,
+            Progress::Count { current, end } => current >= end,
+        }
+    }
+
+    /// Update the progress factor.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if called on a [`Progress::Count`].
+    pub fn update_factor(&mut self, new_current: f32) {
+        match &mut self.progress {
+            Progress::Factor { current } => *current = new_current,
+            Progress::Count { .. } => panic!("shouldn't be call"),
+        }
+    }
+
+    /// Update the progress value for [`Progress::Count`].
+    ///
+    /// # Panics
+    ///
+    /// Will panic if called on a [`Progress::Factor`].
+    pub fn update_progress(&mut self, new_progress: usize) {
+        match &mut self.progress {
+            Progress::Factor { .. } => panic!("shouldn't be call"),
+            Progress::Count { current, .. } => *current = new_progress,
+        }
+    }
+
+    /// Increment the progress value for [`Progress::Count`].
+    ///
+    /// # Panics
+    ///
+    /// Will panic if called on a [`Progress::Factor`].
+    pub fn increment_progress(&mut self) {
+        match &mut self.progress {
+            Progress::Factor { .. } => panic!("shouldn't be call"),
+            Progress::Count { current, .. } => *current += 1,
+        }
+    }
 }
 
 /// Store the application context, to manage app processing information (report, progress, log, warning, error, ...)
@@ -79,23 +173,7 @@ impl AppContext {
 
 impl SubProcess for AppContext {
     fn create_sub_process(&self, name: impl Into<String>) -> ProcessingContext {
-        // Create a new `ProcessingCtx` than write info in stderr
-        ProcessingContext {
-            logger: Box::new(ProcErrLogger {
-                //app_ctx: self,
-                log_writer: Box::new(io::stderr()),
-                //parent: None,
-                level_indent: String::new(),
-            }),
-            name: name.into(),
-            level: 0,
-        }
-    }
-}
-
-impl ProcessingProgress for AppContext {
-    fn update_progress(&self, _: f32) {
-        todo!() // shouldn't be called
+        ProcessingContext::from_level(name, 0)
     }
 }
 
@@ -117,18 +195,6 @@ impl ProcErrLogger {
             log_writer: Box::new(io::stderr()),
             level_indent,
         }
-    }
-}
-
-impl ProcessingProgress for ProcErrLogger {
-    fn update_progress(&self, _: f32) {
-        todo!() // shouldn't be called
-    }
-}
-
-impl Drop for ProcErrLogger {
-    fn drop(&mut self) {
-        write!(self.log_writer, "{} finished.", self.level_indent).unwrap();
     }
 }
 
