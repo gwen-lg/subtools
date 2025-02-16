@@ -6,7 +6,8 @@ mod file_processor;
 mod subtitle_file;
 
 pub use app_context::{
-    AppContext, ProcErrLogger, ProcessingContext, ProcessingProgress, SubProcess,
+    AppContext, IterProcessing, ProcErrLogger, ProcessingContext, ProcessingContextIter,
+    ProcessingProgress, SubProcess,
 };
 pub use file_processor::FileProcessor;
 pub use subtitle_file::SubtitleFile;

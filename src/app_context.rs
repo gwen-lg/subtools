@@ -1,6 +1,10 @@
 //! TODO
 
-use std::io::{self, Write};
+use std::{
+    cell::RefCell,
+    io::{self, Write},
+    rc::Rc,
+};
 
 // TODO: work context as struct than carry some object than implement trait, like Progress, sub_process_creator, a writer
 
@@ -213,5 +217,69 @@ impl io::Write for ProcErrLogger {
 
     fn flush(&mut self) -> io::Result<()> {
         self.log_writer.flush()
+    }
+}
+
+/// Create an iterator Processing
+pub trait IterProcessing: Iterator {
+    // ExactSizeIterator
+
+    /// Add a [`ProcessingContext`] to an iterator.
+    /// This allow to auto-magically handle progress
+    fn process_context(
+        self,
+        ctx: impl SubProcess,
+        name: impl Into<String>,
+    ) -> ProcessingContextIter<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        let mut sub_context = ctx.create_sub_process(name);
+        //let nb_element = self.len(); // for ExactSizeIterator
+        let (nb_element, _) = self.size_hint();
+
+        sub_context.init_progress(ProcessingProgress::from_count(nb_element));
+        ProcessingContextIter {
+            iter: self,
+            context: Rc::new(RefCell::new(sub_context)),
+        }
+    }
+
+    /// Include a [`ProcessingContext`] into the iteraotr
+    fn include_context(self, ctx: Rc<RefCell<ProcessingContext>>) -> ProcessingContextIter<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        let (nb_element, _) = self.size_hint();
+
+        ctx.borrow_mut()
+            .init_progress(ProcessingProgress::from_count(nb_element));
+        ProcessingContextIter {
+            iter: self,
+            context: ctx,
+        }
+    }
+}
+
+impl<U> IterProcessing for U where U: Iterator {}
+
+/// TODO:
+pub struct ProcessingContextIter<Iter> {
+    iter: Iter,
+    context: Rc<RefCell<ProcessingContext>>,
+}
+
+impl<Iter> Iterator for ProcessingContextIter<Iter>
+where
+    Iter: Iterator,
+{
+    type Item = (Rc<RefCell<ProcessingContext>>, Iter::Item); // (&'a mut ProcessingContext,
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(progress) = self.context.borrow_mut().progress.as_mut() {
+            //TODO: update end, size_hint can be incorrect
+            progress.increment_progress();
+        }
+        self.iter.next().map(move |val| (self.context.clone(), val))
     }
 }
