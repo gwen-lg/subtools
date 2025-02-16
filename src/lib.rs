@@ -9,7 +9,9 @@ pub mod matroska; //TODO: move in a crate (subtile ? or subtile-matroska ?)
 mod ocr;
 mod subtitle_file;
 
-pub use app_context::ProcessingCtx;
+pub use app_context::{
+    AppContext, ProcErrLogger, ProcessingContext, ProcessingProgress, SubProcess,
+};
 pub use extract::extract_subs;
 pub use file_encoding::convert_subs_to_utf8;
 pub use file_processor::FileProcessor;
