@@ -5,7 +5,7 @@ use std::{env, ffi::OsString, path::PathBuf};
 use anyhow::Context;
 use clap::Parser;
 use commands::Commands;
-use subtools::{convert_subs_to_utf8, extract_subs, ocr_subs, FileProcessor};
+use subtools::{convert_subs_to_utf8, extract_subs, ocr_subs, FileProcessor, ProcessingCtx};
 mod commands;
 
 /// A CLI application to manipulate subtitles files.
@@ -31,16 +31,17 @@ fn main() -> anyhow::Result<()> {
         env::current_dir().context("Failed to access to current directory")?
     };
 
+    let proc_ctx = ProcessingCtx::with_stderr_writer();
     let files_processor = FileProcessor::from_path(in_path);
     match args.command {
         Commands::ConvertToUtf8 {} => {
-            convert_subs_to_utf8(&files_processor);
+            convert_subs_to_utf8(proc_ctx, &files_processor);
         }
         Commands::Ocr {} => {
-            ocr_subs(&files_processor);
+            ocr_subs(proc_ctx, &files_processor);
         }
         Commands::Extract {} => {
-            extract_subs(&files_processor);
+            extract_subs(proc_ctx, &files_processor);
         }
     }
     Ok(())

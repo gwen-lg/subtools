@@ -15,6 +15,7 @@ use thiserror::Error;
 use crate::{
     file_processor::FileProcessor,
     subtitle_file::{SubtitleFile, SubtitleFormat},
+    ProcessingCtx,
 };
 
 #[derive(Debug, Error)]
@@ -50,7 +51,8 @@ pub enum Error {
 
 /// Run ocr processing on indicates files.
 #[allow(clippy::missing_panics_doc)] //TODO: replace unwrap by error management
-pub fn ocr_subs(files: &FileProcessor) {
+pub fn ocr_subs(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
+    let ctx = &mut proc_ctx;
     files
         .subtitle_files()
         .filter_map(|path| SubtitleFile::try_from(path.as_path()).ok())
@@ -62,12 +64,15 @@ pub fn ocr_subs(files: &FileProcessor) {
             if path.exists() {
                 eprintln!("File '{path:?}' already exist, do not override with OCR.");
             } else {
-                ocr_sub(sub_file).unwrap();
+                ocr_sub(ctx, sub_file).unwrap();
             }
         });
 }
 
-fn ocr_sub(file: SubtitleFile) -> Result<(), Error> {
+fn ocr_sub(proc_ctx: &mut ProcessingCtx, file: SubtitleFile) -> Result<(), Error> {
+    let filename = file.filename().unwrap();
+    writeln!(proc_ctx.writer(), "Ocr sub for {filename:?}").unwrap();
+
     let (times, images) = match file.format() {
         SubtitleFormat::VobSub => parse_vobsub(&file)?,
         SubtitleFormat::Pgs => parse_pgs(&file)?,
