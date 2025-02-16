@@ -5,7 +5,9 @@ use std::{env, ffi::OsString, path::PathBuf};
 use anyhow::Context;
 use clap::Parser;
 use commands::Commands;
-use subtools::{convert_subs_to_utf8, extract_subs, ocr_subs, FileProcessor, ProcessingCtx};
+use subtools::{
+    convert_subs_to_utf8, extract_subs, ocr_subs, AppContext, FileProcessor, SubProcess,
+};
 mod commands;
 
 /// A CLI application to manipulate subtitles files.
@@ -22,6 +24,7 @@ struct Cli {
 }
 
 fn main() -> anyhow::Result<()> {
+    let app_ctx = AppContext::new();
     let args = Cli::parse();
 
     //TODO: move into a file
@@ -31,16 +34,18 @@ fn main() -> anyhow::Result<()> {
         env::current_dir().context("Failed to access to current directory")?
     };
 
-    let proc_ctx = ProcessingCtx::with_stderr_writer();
     let files_processor = FileProcessor::from_path(in_path);
     match args.command {
         Commands::ConvertToUtf8 {} => {
+            let proc_ctx = app_ctx.create_sub_process("Convert subtitles files to UTF-8");
             convert_subs_to_utf8(proc_ctx, &files_processor);
         }
         Commands::Ocr {} => {
+            let proc_ctx = app_ctx.create_sub_process("Convert subtitles binary files to UTF-8");
             ocr_subs(proc_ctx, &files_processor);
         }
         Commands::Extract {} => {
+            let proc_ctx = app_ctx.create_sub_process("Extract subtitles from media file");
             extract_subs(proc_ctx, &files_processor);
         }
     }

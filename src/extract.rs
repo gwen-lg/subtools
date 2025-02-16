@@ -9,12 +9,12 @@ use crate::{
     matroska::{
         frame_time_span, CodecId, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter,
     },
-    ProcessingCtx,
+    ProcessingContext,
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
 
 /// Extract subtitles from indicated files.
-pub fn extract_subs(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
+pub fn extract_subs(mut proc_ctx: ProcessingContext, files: &FileProcessor) {
     files
         .subtitle_files()
         .filter(|path| {
@@ -28,7 +28,7 @@ pub fn extract_subs(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
         });
 }
 
-fn extract_subs_mkv(proc_ctx: &mut ProcessingCtx, path: std::path::PathBuf) {
+fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) {
     writeln!(proc_ctx, "Extract sub for {path:?}").unwrap();
 
     let file = File::open(path.as_path()).unwrap();
