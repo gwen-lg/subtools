@@ -4,13 +4,13 @@ use std::{
     num::NonZero,
 };
 
-use matroska_demuxer::{Frame, MatroskaFile, TrackType};
-use subtile::time::{TimePoint, TimeSpan};
-
 use crate::{
     file_processor::FileProcessor,
-    matroska::{CodecId, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter},
+    matroska::{
+        frame_time_span, CodecId, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter,
+    },
 };
+use matroska_demuxer::{Frame, MatroskaFile, TrackType};
 
 /// Extract subtitles from indicated files.
 pub fn extract_subs(files: &FileProcessor) {
@@ -108,11 +108,7 @@ fn extract_subs_mkv(path: std::path::PathBuf) {
                 .duration
                 .or(default_duration)
                 .expect("no duration or default duration");
-            assert!(frame.timestamp <= i64::MAX as u64);
-            let time_start = TimePoint::from_msecs(frame.timestamp as i64);
-            let time_end = TimePoint::from_msecs((frame.timestamp + duration) as i64);
-            let time_span = TimeSpan::new(time_start, time_end);
-
+            let time_span = frame_time_span(frame.timestamp, duration);
             decoder.push_sub_line(time_span, &frame.data);
         }
     }
