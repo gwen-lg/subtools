@@ -6,13 +6,14 @@ use std::{
 use chardetng::EncodingDetector;
 use encoding_rs::{CoderResult, Encoding};
 
-use crate::{file_processor::FileProcessor, subtitle_file::SubtitleFile};
+use crate::{file_processor::FileProcessor, subtitle_file::SubtitleFile, ProcessingCtx};
 
 pub const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 
 ///TODO: report error in a context
 #[allow(clippy::missing_panics_doc)]
-pub fn convert_subs_to_utf8(files: &FileProcessor) {
+pub fn convert_subs_to_utf8(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
+    let ctx = &mut proc_ctx;
     files
         .subtitle_files()
         //TODO: ignore previous copy of old file
@@ -23,14 +24,17 @@ pub fn convert_subs_to_utf8(files: &FileProcessor) {
                 .inspect_err(|err| eprintln!("Failed to open '{:?}' : {err:?}", sub_file.path()))
                 .ok();
             if let Some(file) = file {
-                convert_file_to_utf8(&sub_file, file);
+                convert_file_to_utf8(ctx, &sub_file, file);
             } else {
                 todo!()
             }
         });
 }
 
-fn convert_file_to_utf8(sub_file: &SubtitleFile, file: File) {
+fn convert_file_to_utf8(proc_ctx: &mut ProcessingCtx, sub_file: &SubtitleFile, file: File) {
+    let filename = sub_file.filename().unwrap();
+    writeln!(proc_ctx, "convert {filename:?}").unwrap();
+
     let mut reader = BufReader::new(file);
 
     let is_utf8 = match Encoding::for_bom(reader.fill_buf().unwrap()) {

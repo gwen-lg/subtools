@@ -1,6 +1,7 @@
 use crate::{
     file_processor::FileProcessor,
     matroska::{CodecId, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter},
+    ProcessingCtx,
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
 use std::{
@@ -10,7 +11,7 @@ use std::{
 };
 
 /// Extract subtitles from indicated files.
-pub fn extract_subs(files: &FileProcessor) {
+pub fn extract_subs(mut proc_ctx: ProcessingCtx, files: &FileProcessor) {
     files
         .subtitle_files()
         .filter(|path| {
@@ -20,11 +21,13 @@ pub fn extract_subs(files: &FileProcessor) {
         //.filter_map(|path| path.as_path().extension() )
         //.filter(|sub_file| sub_file.is_image())
         .for_each(|path| {
-            extract_subs_mkv(path);
+            extract_subs_mkv(&mut proc_ctx, path);
         });
 }
 
-fn extract_subs_mkv(path: std::path::PathBuf) {
+fn extract_subs_mkv(proc_ctx: &mut ProcessingCtx, path: std::path::PathBuf) {
+    writeln!(proc_ctx, "Extract sub for {path:?}").unwrap();
+
     let file = File::open(path.as_path()).unwrap();
     let file = BufReader::new(file);
     let mut mkv = MatroskaFile::open(file).unwrap();
