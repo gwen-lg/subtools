@@ -10,7 +10,8 @@ mod ocr;
 mod subtitle_file;
 
 pub use app_context::{
-    AppContext, ProcErrLogger, ProcessingContext, ProcessingProgress, SubProcess,
+    AppContext, IterProcessing, ProcErrLogger, ProcessingContext, ProcessingContextIter,
+    ProcessingProgress, SubProcess,
 };
 pub use extract::extract_subs;
 pub use file_encoding::convert_subs_to_utf8;
