@@ -15,7 +15,7 @@ use thiserror::Error;
 use crate::{
     file_processor::FileProcessor,
     subtitle_file::{SubtitleFile, SubtitleFormat},
-    ProcessingContext, ProcessingProgress, SubProcess,
+    IterProcessing, ProcessingContext, SubProcess,
 };
 
 #[derive(Debug, Error)]
@@ -51,26 +51,26 @@ pub enum Error {
 
 /// Run ocr processing on indicates files.
 #[allow(clippy::missing_panics_doc)] //TODO: replace unwrap by error management
-pub fn ocr_subs(mut proc_ctx: ProcessingContext, files: &FileProcessor) {
-    let ctx = &mut proc_ctx;
+pub fn ocr_subs(proc_ctx: ProcessingContext, files: &FileProcessor) {
     let files_to_process = files
         .subtitle_files()
         .filter_map(|path| SubtitleFile::try_from(path.as_path()).ok())
         .filter(|sub_file| sub_file.is_image())
         .collect::<Vec<_>>();
 
-    let nb_files = files_to_process.len();
-    ctx.init_progress(ProcessingProgress::from_count(nb_files));
-    files_to_process.into_iter().for_each(|sub_file| {
-        let mut path = sub_file.path().to_path_buf();
-        path.set_extension("srt");
+    files_to_process
+        .into_iter()
+        .process_context(proc_ctx, "Tired to ocr files")
+        .for_each(|(ctx, sub_file)| {
+            let mut path = sub_file.path().to_path_buf();
+            path.set_extension("srt");
 
-        if path.exists() {
-            eprintln!("File '{path:?}' already exist, do not override with OCR.");
-        } else {
-            ocr_sub(ctx, sub_file).unwrap();
-        }
-    });
+            if path.exists() {
+                eprintln!("File '{path:?}' already exist, do not override with OCR.");
+            } else {
+                ocr_sub(&mut ctx.borrow_mut(), sub_file).unwrap();
+            }
+        });
 }
 
 fn ocr_sub(proc_ctx: &mut ProcessingContext, file: SubtitleFile) -> Result<(), Error> {
