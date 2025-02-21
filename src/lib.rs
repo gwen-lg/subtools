@@ -2,6 +2,7 @@
 //! A command line utilities is also provided.
 
 mod app_context;
+mod context_iterator;
 mod extract;
 mod file_encoding;
 mod file_processor;
