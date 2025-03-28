@@ -50,28 +50,35 @@ jobs:
       - name: "Cargo formatting"
         id: cargo_fmt
         if: $${{ always() }}
-        run: |
-          cargo fmt --all -- --check
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
 
       - name: "Cargo clippy"
         id: cargo_clippy
         if: $${{ always() }}
-        run: |
-          cargo clippy --profile=test  --locked
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --profile=test --locked
 
       - name: "Cargo test"
         id: cargo_test
         if: $${{ always() }}
-        run: |
-          cargo test --locked
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --locked
 
       - name: "Cargo doc"
         id: cargo_doc
         env:
           RUSTDOCFLAGS: "-D warnings"
         if: $${{ always() }}
-        run: |
-          cargo doc
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
 
       - name: "Some checks failed"
         if: ${{ failure() }}
