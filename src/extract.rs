@@ -1,7 +1,7 @@
 use crate::{
     IterProcessing, ProcessingContext, SubProcess,
     file_processor::FileProcessor,
-    matroska::{CodecId, ContentDecoder, FrameHandler, SrtWriter, WebvttWriter},
+    matroska::{CodecId, ContentDecoder, FrameHandler, PgsFrameHandler, SrtWriter, WebvttWriter},
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
 use std::{
@@ -117,6 +117,11 @@ fn create_frame_decoder(
     mut filename: PathBuf,
 ) -> Box<dyn FrameHandler> {
     match codec {
+        CodecId::Pgs => {
+            filename.set_extension("sup");
+            let file = BufWriter::new(File::create(filename).unwrap());
+            Box::new(PgsFrameHandler::new(file))
+        }
         CodecId::SubRip => {
             filename.set_extension("srt");
             let mut file = BufWriter::new(File::create(filename).unwrap());

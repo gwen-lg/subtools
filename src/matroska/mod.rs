@@ -2,11 +2,13 @@
 
 mod codec_id;
 mod content;
+mod pgs;
 mod subrip;
 mod webvtt;
 
 pub use codec_id::CodecId;
 pub(crate) use content::ContentDecoder;
+pub use pgs::PgsFrameHandler;
 pub use subrip::SrtWriter;
 pub use webvtt::WebvttWriter;
 
