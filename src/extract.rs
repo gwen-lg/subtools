@@ -3,6 +3,7 @@ use std::{
     fs::File,
     io::{BufReader, BufWriter, Write},
     num::NonZero,
+    path::PathBuf,
     rc::Rc,
 };
 
@@ -82,27 +83,27 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
                 "Extract track [{}]: `{}` - {}",
                 track_entry.track_number(),
                 track_entry.codec_id(),
-                track_entry.language().unwrap_or("<un>"),
+                track_entry.language().unwrap_or("eng"),
             )
             .unwrap();
         })
         .map(|(_, codec, track)| {
             let track_num = track.track_number().get();
             let default_duration = track.default_duration();
-            let lang = track
-                .language()
-                .map(|lang| format!(".{lang}"))
-                .unwrap_or_else(|| "".into());
+            let lang = track.language().unwrap_or("eng");
+            let encoding = track.content_encodings();
+
+            let mut filename = PathBuf::from(format!("{filestem}.{track_num}-{lang}.tmp"));
 
             let decoder: Box<dyn SubtitleLineDecoder> = if codec == CodecId::SubRip {
-                let filename = format!("{filestem:?}.{track_num}{lang}.srt"); //TODO
+                filename.set_extension("srt");
                 let mut file = BufWriter::new(File::create(filename).unwrap());
                 //TODO: write BOM in SrtWriter ?
                 file.write_all(&crate::file_encoding::UTF8_BOM).unwrap();
                 Box::new(SrtWriter::new(file))
             } else if codec == CodecId::WebVTT {
                 //TODO: manage track data
-                let filename = format!("{filestem:?}.{track_num}{lang}.vtt"); //TODO
+                filename.set_extension("vtt");
                 let file = BufWriter::new(File::create(filename).unwrap());
                 let codec_private = track.codec_private();
                 Box::new(WebvttWriter::new(file, codec_private))
