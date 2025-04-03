@@ -1,7 +1,6 @@
 use crate::{
     file_processor::FileProcessor,
-    matroska::{CodecId, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter},
-    subtitle_file::SubtitleFormat,
+    matroska::{CodecId, PgsDecoder, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter},
     IterProcessing, ProcessingContext, SubProcess,
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
@@ -52,39 +51,23 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
         .iter()
         .filter(|track| track.track_type() == TrackType::Subtitle)
         .include_context(cur_ctx.clone())
-        .inspect(|(ctx, track)| {
-            let mut cur_ctx = ctx.borrow_mut();
-            writeln!(
-                cur_ctx,
-                "track `{}`: {} - {:?}",
-                track.track_number(),
-                track.codec_id(),
-                track.codec_name()
-            )
-            .unwrap();
+        .map(|(ctx, track)| {
+            let codec = CodecId::try_from(track.codec_id()).ok();
+            (ctx, track, codec)
         })
-        .filter_map(|(ctx, track)| {
-            if let Ok(codec) = CodecId::try_from(track.codec_id()) {
-                if SubtitleFormat::from(codec).is_text() {
-                    Some((ctx, codec, track))
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        })
-        .inspect(|(ctx, _, track_entry)| {
+        .inspect(|(ctx, track_entry, codec)| {
             writeln!(
                 ctx.borrow_mut(),
-                "Extract track [{}]: `{}` - {}",
+                "track [{}]: `{}` - {} : {}",
                 track_entry.track_number(),
                 track_entry.codec_id(),
                 track_entry.language().unwrap_or("eng"),
+                if codec.is_some() { "extract" } else { "skip" }
             )
             .unwrap();
         })
-        .map(|(_, codec, track)| {
+        .filter_map(|(ctx, track, codec)| codec.map(|codec| (ctx, track, codec)))
+        .map(|(_, track, codec)| {
             let track_num = track.track_number().get();
             let default_duration = track.default_duration();
             let lang = track.language().unwrap_or("eng");
