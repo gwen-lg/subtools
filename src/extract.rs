@@ -134,12 +134,10 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
             {
                 let (decoder, default_duration) = &mut tracks_info[select_idx];
                 let default_duration = default_duration.map(|val| val.get());
-                let duration = frame
-                    .duration
-                    .or(default_duration)
-                    .expect("no duration or default duration");
-                let time_span = frame_time_span(frame.timestamp, duration);
-                decoder.push_sub_line(time_span, &frame.data);
+                let duration = frame.duration.or(default_duration);
+                //.expect("no duration or default duration");
+                //let time_span = frame_time_span( duration);
+                decoder.push_sub_line(frame.timestamp, duration, &frame.data);
             }
         }
     }

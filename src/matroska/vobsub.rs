@@ -1,7 +1,7 @@
 use std::str;
 
 use super::SubtitleLineDecoder;
-use subtile::{time::TimeSpan, webvtt::TimePointVtt};
+use subtile::time::TimePoint;
 
 ///Wip + TODO
 pub struct VobSubDecoder {}
@@ -16,11 +16,11 @@ impl VobSubDecoder {
     }
 }
 impl SubtitleLineDecoder for VobSubDecoder {
-    fn push_sub_line(&mut self, time: TimeSpan, content: &[u8]) {
+    fn push_sub_line(&mut self, timestamp: u64, _duration: Option<u64>, content: &[u8]) {
         let content_size = content.len();
         println!(
             "VobSub frame `{}`: {content_size}",
-            TimePointVtt::from(time.start)
+            TimePoint::from_msecs(timestamp as i64).to_secs()
         );
     }
 }

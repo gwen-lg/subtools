@@ -1,7 +1,7 @@
 use std::{io::Write, str};
 
-use super::SubtitleLineDecoder;
-use subtile::{time::TimeSpan, webvtt};
+use super::{frame_time_span, SubtitleLineDecoder};
+use subtile::webvtt;
 
 ///TODO
 pub struct WebvttWriter<W: Write> {
@@ -23,8 +23,9 @@ impl<W: Write> WebvttWriter<W> {
     }
 }
 impl<W: Write> SubtitleLineDecoder for WebvttWriter<W> {
-    fn push_sub_line(&mut self, time: TimeSpan, content: &[u8]) {
+    fn push_sub_line(&mut self, timestamp: u64, duration: Option<u64>, content: &[u8]) {
         let text = str::from_utf8(content).unwrap();
+        let time = frame_time_span(timestamp, duration.expect("need duration"));
         webvtt::write_line(&mut self.writer, &time, text).unwrap();
     }
 }

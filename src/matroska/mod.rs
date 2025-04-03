@@ -15,7 +15,7 @@ use subtile::time::{TimePoint, TimeSpan};
 /// Define the interface for manage (decode) a subtitle line from source (like matroska)
 pub trait SubtitleLineDecoder {
     /// Call with information/data on a subtitle line.
-    fn push_sub_line(&mut self, time: TimeSpan, content: &[u8]);
+    fn push_sub_line(&mut self, timestamp: u64, duration: Option<u64>, content: &[u8]);
 }
 
 /// Create a `TimeSpan` from the frame timestamp and a duration
