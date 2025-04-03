@@ -112,12 +112,14 @@ fn ocr_sub(proc_ctx: &mut ProcessingContext, file: SubtitleFile) -> Result<(), E
 type ParseResult = (Vec<TimeSpan>, Vec<image::GrayImage>);
 
 fn parse_vobsub(file: &SubtitleFile) -> Result<ParseResult, Error> {
+    let sub = vobsub::Sub::open(file.path()).map_err(Error::IndexOpen)?;
+
     let mut idx_path = file.path().to_path_buf();
     idx_path.set_extension("idx");
     let idx = vobsub::Index::open(idx_path).map_err(Error::IndexOpen)?;
 
     let (times, images): (Vec<_>, Vec<_>) = {
-        idx.subtitles::<(TimeSpan, vobsub::VobSubIndexedImage)>()
+        sub.subtitles::<(TimeSpan, vobsub::VobSubIndexedImage)>()
             .filter_map(|sub| match sub {
                 Ok(sub) => Some(sub),
                 Err(e) => {
