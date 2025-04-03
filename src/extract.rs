@@ -79,9 +79,10 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
         .inspect(|(ctx, _, track_entry)| {
             writeln!(
                 ctx.borrow_mut(),
-                "Extract track [{}]: `{}` - lang",
+                "Extract track [{}]: `{}` - {}",
                 track_entry.track_number(),
-                track_entry.codec_id()
+                track_entry.codec_id(),
+                track_entry.language().unwrap_or("<un>"),
             )
             .unwrap();
         })
