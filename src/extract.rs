@@ -9,9 +9,9 @@ use std::{
 use crate::{
     file_processor::FileProcessor,
     matroska::{
-        frame_time_span, CodecId, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter,
+        frame_time_span, CodecId, PgsDecoder, SrtWriter, SubtitleLineDecoder, VobSubDecoder,
+        WebvttWriter,
     },
-    subtitle_file::SubtitleFormat,
     IterProcessing, ProcessingContext, SubProcess,
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
@@ -67,11 +67,11 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
         })
         .filter_map(|(ctx, track)| {
             if let Ok(codec) = CodecId::try_from(track.codec_id()) {
-                if SubtitleFormat::from(codec).is_text() {
-                    Some((ctx, codec, track))
-                } else {
-                    None
-                }
+                // if SubtitleFormat::from(codec).is_text() {
+                Some((ctx, codec, track))
+                // } else {
+                //     None
+                // }
             } else {
                 None
             }
