@@ -1,8 +1,7 @@
 use crate::{
     IterProcessing, ProcessingContext, SubProcess,
     file_processor::FileProcessor,
-    matroska::{CodecId, FrameHandler, SrtWriter, WebvttWriter},
-    subtitle_file::SubtitleFormat,
+    matroska::{CodecId, ContentDecoder, FrameHandler, SrtWriter, WebvttWriter},
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
 use std::{
@@ -54,43 +53,32 @@ fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &Path) {
         .iter()
         .filter(|track| track.track_type() == TrackType::Subtitle)
         .include_context(cur_ctx.clone())
-        .inspect(|(ctx, track)| {
+        .map(|(ctx, track)| {
+            let codec = CodecId::try_from(track.codec_id()).ok();
+            (ctx, track, codec)
+        })
+        .inspect(|(ctx, track_entry, codec)| {
             writeln!(
                 ctx.borrow_mut(),
-                "track `{}`: {} - {:?}",
-                track.track_number(),
-                track.codec_id(),
-                track.codec_name()
-            )
-            .unwrap();
-        })
-        .filter_map(|(ctx, track)| {
-            CodecId::try_from(track.codec_id()).map_or(None, |codec| {
-                if SubtitleFormat::from(codec).is_text() {
-                    Some((ctx, codec, track))
-                } else {
-                    None
-                }
-            })
-        })
-        .inspect(|(ctx, _, track_entry)| {
-            writeln!(
-                ctx.borrow_mut(),
-                "Extract track [{}]: `{}` - {}",
+                "track [{}]: `{}` - {} : {}",
                 track_entry.track_number(),
                 track_entry.codec_id(),
                 track_entry.language().unwrap_or("eng"),
+                if codec.is_some() { "extract" } else { "skip" }
             )
             .unwrap();
         })
-        .map(|(_, codec, track)| {
+        .filter_map(|(ctx, track, codec)| codec.map(|codec| (ctx, track, codec)))
+        .map(|(_, track, codec)| {
             let track_num = track.track_number().get();
             let default_duration = track.default_duration();
             let lang = track.language().unwrap_or("eng");
+            let encoding = track.content_encodings();
+            let content_decoder = ContentDecoder::new(encoding);
 
             let filename = PathBuf::from(format!("{filestem}.{track_num}-{lang}.tmp"));
             let decoder = create_frame_decoder(track, codec, filename);
-            (track_num, (decoder, default_duration))
+            (track_num, (content_decoder, decoder, default_duration))
         })
         .unzip::<_, _, Vec<_>, Vec<_>>();
 
@@ -112,12 +100,12 @@ fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &Path) {
                     })
             //.map(|(_, duration)| duration.map(|val| val.get()))
             {
-                let (decoder, default_duration) = &mut tracks_info[select_idx];
+                let (frame_decoder, decoder, default_duration) = &mut tracks_info[select_idx];
                 let default_duration = default_duration.map(NonZero::get);
                 let duration = frame.duration.or(default_duration);
                 assert!(i64::try_from(frame.timestamp).is_ok());
-
-                decoder.push_frame(frame.timestamp, duration, &frame.data);
+                let content = frame_decoder.transform(frame.data.clone()); //TODO: remove the clone
+                decoder.push_frame(frame.timestamp, duration, &content);
             }
         }
     }

@@ -1,10 +1,12 @@
 //! specific code for matroska subtitle management
 
 mod codec_id;
+mod content;
 mod subrip;
 mod webvtt;
 
 pub use codec_id::CodecId;
+pub(crate) use content::ContentDecoder;
 pub use subrip::SrtWriter;
 pub use webvtt::WebvttWriter;
 
