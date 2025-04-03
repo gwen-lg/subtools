@@ -36,15 +36,15 @@ fn main() -> anyhow::Result<()> {
 
     let files_processor = FileProcessor::from_path(in_path);
     match args.command {
-        Commands::ConvertToUtf8 {} => {
+        Commands::ConvertToUtf8 => {
             let proc_ctx = app_ctx.create_sub_process("Convert subtitles files to UTF-8");
             convert_subs_to_utf8(proc_ctx, &files_processor);
         }
-        Commands::Ocr {} => {
+        Commands::Ocr => {
             let proc_ctx = app_ctx.create_sub_process("Convert subtitles binary files to UTF-8");
             ocr_subs(proc_ctx, &files_processor);
         }
-        Commands::Extract {} => {
+        Commands::Extract => {
             let proc_ctx = app_ctx.create_sub_process("Extract subtitles from media file");
             extract_subs(proc_ctx, &files_processor);
         }
