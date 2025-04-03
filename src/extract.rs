@@ -10,7 +10,8 @@ use std::{
 use crate::{
     file_processor::FileProcessor,
     matroska::{
-        CodecId, ContentDecoder, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter,
+        CodecId, ContentDecoder, PgsDecoder, SrtWriter, SubtitleLineDecoder, VobSubDecoder,
+        WebvttWriter,
     },
     IterProcessing, ProcessingContext, SubProcess,
 };
@@ -94,6 +95,10 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
                 Box::new(WebvttWriter::new(file, codec_private))
             } else if codec == CodecId::VobSub {
                 Box::new(VobSubDecoder::new(track.codec_private().unwrap()))
+            } else if codec == CodecId::Pgs {
+                filename.set_extension("sup");
+                let file = BufWriter::new(File::create(filename).unwrap());
+                Box::new(PgsDecoder::new(file))
             } else {
                 todo!()
             };
