@@ -57,6 +57,7 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
             let codec = CodecId::try_from(track.codec_id()).ok();
             (ctx, track, codec)
         })
+        //TODO: add parametric filter, like on lang or subtitle format
         .inspect(|(ctx, track_entry, codec)| {
             writeln!(
                 ctx.borrow_mut(),
