@@ -3,10 +3,9 @@ run-name: Checks for ${{ github.event_name }} - ${{ github.event.head_commit.mes
 
 on:
   push:
-    paths:
-      - ".github/workflows/code_check.yml"
-      - "Cargo.*"
-      - "src/**"
+    branches-ignore:
+      - 'wip'
+      - 'wip*'
   pull_request:
     paths:
       - ".github/workflows/code_check.yml"

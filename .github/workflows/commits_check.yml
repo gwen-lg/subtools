@@ -13,8 +13,9 @@ on:
       - reopened
       - synchronize
   push:
-    branches:
-      - '*'
+    branches-ignore:
+      - 'wip'
+      - 'wip*'
 
 jobs:
   check-comventional-commits:
