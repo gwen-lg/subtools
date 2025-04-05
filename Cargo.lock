@@ -822,6 +822,7 @@ dependencies = [
  "chardetng",
  "clap",
  "encoding_rs",
+ "flate2",
  "matroska-demuxer",
  "subtile",
  "subtile-ocr",

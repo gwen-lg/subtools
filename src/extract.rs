@@ -1,6 +1,8 @@
 use crate::{
     file_processor::FileProcessor,
-    matroska::{CodecId, PgsDecoder, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter},
+    matroska::{
+        CodecId, ContentDecoder, SrtWriter, SubtitleLineDecoder, VobSubDecoder, WebvttWriter,
+    },
     IterProcessing, ProcessingContext, SubProcess,
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
@@ -72,6 +74,7 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
             let default_duration = track.default_duration();
             let lang = track.language().unwrap_or("eng");
             let encoding = track.content_encodings();
+            let content_decoder = ContentDecoder::new(encoding);
 
             let mut filename = PathBuf::from(format!("{filestem}.{track_num}-{lang}.tmp"));
 
@@ -92,7 +95,7 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
             } else {
                 todo!()
             };
-            (track_num, (decoder, default_duration))
+            (track_num, (content_decoder, decoder, default_duration))
         })
         .unzip::<_, _, Vec<_>, Vec<_>>();
 
@@ -114,12 +117,12 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
                     })
             //.map(|(_, duration)| duration.map(|val| val.get()))
             {
-                let (decoder, default_duration) = &mut tracks_info[select_idx];
+                let (frame_decoder, decoder, default_duration) = &mut tracks_info[select_idx];
                 let default_duration = default_duration.map(|val| val.get());
                 let duration = frame.duration.or(default_duration);
                 assert!(frame.timestamp <= i64::MAX as u64);
-
-                decoder.push_sub_line(frame.timestamp, duration, &frame.data);
+                let content = frame_decoder.transform(frame.data.clone()); //TODO: remove the clone
+                decoder.push_sub_line(frame.timestamp, duration, &content);
             }
         }
     }
