@@ -93,7 +93,15 @@ fn extract_subs_mkv(proc_ctx: &mut ProcessingContext, path: std::path::PathBuf) 
                 let codec_private = track.codec_private();
                 Box::new(WebvttWriter::new(file, codec_private))
             } else if codec == CodecId::VobSub {
-                Box::new(VobSubDecoder::new(track.codec_private().unwrap()))
+                filename.set_extension("idx");
+                let file_idx = BufWriter::new(File::create(&filename).unwrap());
+                filename.set_extension("sub");
+                let file_sub = BufWriter::new(File::create(&filename).unwrap());
+                Box::new(VobSubDecoder::new(
+                    file_idx,
+                    file_sub,
+                    track.codec_private().unwrap(),
+                ))
             } else if codec == CodecId::Pgs {
                 filename.set_extension("sup");
                 let file = BufWriter::new(File::create(filename).unwrap());
