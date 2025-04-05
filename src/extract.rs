@@ -132,7 +132,17 @@ fn create_frame_decoder(
             file.write_all(&crate::file_encoding::UTF8_BOM).unwrap();
             Box::new(SrtWriter::new(file))
         }
-        CodecId::VobSub => Box::new(VobSubFrameHandler::new(track.codec_private().unwrap())),
+        CodecId::VobSub => {
+            filename.set_extension("idx");
+            let file_idx = BufWriter::new(File::create(&filename).unwrap());
+            filename.set_extension("sub");
+            let file_sub = BufWriter::new(File::create(&filename).unwrap());
+            Box::new(VobSubFrameHandler::new(
+                file_idx,
+                file_sub,
+                track.codec_private().unwrap(),
+            ))
+        }
         CodecId::WebVTT => {
             //TODO: manage track data
             filename.set_extension("vtt");
