@@ -254,5 +254,7 @@ mod tests {
 
         let mut small_reader = BufReader::new("test".as_bytes());
         assert!(!has_utf8_bom(&mut small_reader).unwrap());
+
+        //TODO: test error of to small buffer
     }
 }
