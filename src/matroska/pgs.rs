@@ -1,6 +1,9 @@
 use super::{DumpInfo, FrameHandler};
 use std::{fs::File, io::Write};
-use subtile::pgs::SegmentSplitter;
+use subtile::{
+    image::ToImage as _,
+    pgs::{FrameConvertError, RleToImage, SegmentSplitter},
+};
 
 // Segment start Magic Number
 const MAGIC_NUMBER: [u8; 2] = [0x50, 0x47];
@@ -10,6 +13,7 @@ const MAGIC_NUMBER: [u8; 2] = [0x50, 0x47];
 pub struct PgsFrameHandler<Writer> {
     writer: Writer,
     dump_raw_frame: Option<DumpInfo>,
+    dump_images: Option<DumpInfo>,
 }
 impl<Writer> PgsFrameHandler<Writer>
 where
@@ -22,12 +26,18 @@ where
         Self {
             writer,
             dump_raw_frame: None,
+            dump_images: None,
         }
     }
 
     /// Enable the dump of raw frame.
     pub fn dump_raw_frame(&mut self, info: DumpInfo) {
         self.dump_raw_frame.replace(info);
+    }
+
+    /// Enable the dump of frame image
+    pub fn dump_images(&mut self, info: DumpInfo) {
+        self.dump_images.replace(info);
     }
 }
 
@@ -51,6 +61,10 @@ where
         if let Some(dump_info) = &self.dump_raw_frame {
             dump_raw_frame(dump_info, timestamp, content);
         }
+
+        if let Some(dump_info) = &self.dump_images {
+            dump_frame_image(dump_info, timestamp, content);
+        }
     }
 }
 
@@ -63,4 +77,27 @@ fn dump_raw_frame(dump_info: &DumpInfo, timestamp: u64, content: &[u8]) {
     ))
     .unwrap();
     file.write_all(content).unwrap();
+}
+
+// Dump frame image in a file
+fn dump_frame_image(dump_info: &DumpInfo, timestamp: u64, content: &[u8]) {
+    let seg_splitter = SegmentSplitter::from(content);
+    match seg_splitter.try_into() {
+        Ok(rle_img) => {
+            let image = RleToImage::new(&rle_img, |pix| pix).to_image();
+            image
+                .save(format!(
+                    "{}{timestamp}{}.png",
+                    dump_info.prefix,
+                    dump_info.lang_suffix()
+                ))
+                .unwrap();
+        }
+        Err(FrameConvertError::NotAnImage) => {
+            //TODO: manage end time
+        }
+        Err(err) => {
+            eprintln!("{err}");
+        }
+    }
 }
