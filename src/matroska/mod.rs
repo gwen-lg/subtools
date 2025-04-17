@@ -12,6 +12,7 @@ pub use pgs::PgsFrameHandler;
 pub use subrip::SrtWriter;
 pub use webvtt::WebvttWriter;
 
+use compact_str::CompactString;
 use subtile::time::{TimePoint, TimeSpan};
 
 /// Define the interface to handle a frame from source (like matroska)
@@ -29,4 +30,46 @@ pub const fn frame_time_span(timestamp: u64, duration: u64) -> TimeSpan {
     let time_start = TimePoint::from_msecs(timestamp as i64);
     let time_end = TimePoint::from_msecs((timestamp + duration) as i64);
     TimeSpan::new(time_start, time_end)
+}
+
+/// Define information for dump setup.
+///
+/// - `prefix`: a filename prefix
+/// - `lang`: a lang `tag`
+#[derive(Debug, Default)]
+pub struct DumpInfo {
+    prefix: CompactString,
+    lang: CompactString,
+}
+
+impl DumpInfo {
+    /// Create a new [`DumpInfo`] and define prefix and lang.
+    #[must_use]
+    pub fn new(prefix: &str, lang: &str) -> Self {
+        Self {
+            prefix: prefix.into(),
+            lang: lang.into(),
+        }
+    }
+
+    /// Get the asked prefix.
+    #[must_use]
+    pub const fn prefix(&self) -> &CompactString {
+        &self.prefix
+    }
+    /// Get the asked lang `str`.
+    #[must_use]
+    pub const fn lang(&self) -> &CompactString {
+        &self.lang
+    }
+
+    /// Compute lang suffix for dump filename.
+    #[must_use]
+    pub fn lang_suffix(&self) -> CompactString {
+        if self.lang.is_empty() {
+            "".into()
+        } else {
+            format!(".{}", self.lang).into()
+        }
+    }
 }

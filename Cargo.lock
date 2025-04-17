@@ -872,6 +872,7 @@ dependencies = [
  "anyhow",
  "chardetng",
  "clap",
+ "compact_str",
  "encoding_rs",
  "flate2",
  "matroska-demuxer",
