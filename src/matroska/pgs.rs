@@ -1,5 +1,5 @@
-use super::FrameHandler;
-use std::io::Write;
+use super::{DumpInfo, FrameHandler};
+use std::{fs::File, io::Write};
 use subtile::pgs::SegmentSplitter;
 
 // Segment start Magic Number
@@ -9,6 +9,7 @@ const MAGIC_NUMBER: [u8; 2] = [0x50, 0x47];
 #[derive(Default)]
 pub struct PgsFrameHandler<Writer> {
     writer: Writer,
+    dump_raw_frame: Option<DumpInfo>,
 }
 impl<Writer> PgsFrameHandler<Writer>
 where
@@ -18,7 +19,15 @@ where
     #[must_use]
     #[allow(clippy::missing_panics_doc)] //TODO: remove unwrap by return error, or by get str data
     pub const fn new(writer: Writer) -> Self {
-        Self { writer }
+        Self {
+            writer,
+            dump_raw_frame: None,
+        }
+    }
+
+    /// Enable the dump of raw frame.
+    pub fn dump_raw_frame(&mut self, info: DumpInfo) {
+        self.dump_raw_frame.replace(info);
     }
 }
 
@@ -38,5 +47,20 @@ where
             self.writer.write_all(&sup_header).unwrap();
             self.writer.write_all(seg_buf.unwrap().buffer()).unwrap();
         });
+
+        if let Some(dump_info) = &self.dump_raw_frame {
+            dump_raw_frame(dump_info, timestamp, content);
+        }
     }
+}
+
+// Dump frame raw data in a file
+fn dump_raw_frame(dump_info: &DumpInfo, timestamp: u64, content: &[u8]) {
+    let mut file = File::create(format!(
+        "{}_frame_{timestamp}{}.raw",
+        dump_info.prefix,
+        dump_info.lang_suffix()
+    ))
+    .unwrap();
+    file.write_all(content).unwrap();
 }
