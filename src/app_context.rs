@@ -8,12 +8,20 @@ use std::{
 
 // TODO: work context as struct than carry some object than implement trait, like Progress, sub_process_creator, a writer
 
+enum ProcessinStatus {
+    Created,
+    Started,
+    Success,
+    Failed(anyhow::Error),
+}
+
 /// Store the context elements.
 pub struct ProcessingContext {
     logger: Box<dyn Write>,
     progress: Option<ProcessingProgress>,
     name: String,
     level: u8,
+    status: ProcessinStatus,
 }
 
 impl ProcessingContext {
@@ -39,7 +47,27 @@ impl ProcessingContext {
             progress: None,
             name,
             level: 0,
+            status: ProcessinStatus::Created,
         }
+    }
+
+    /// Close the task with info about the end
+    pub fn close(self, _result: Result<(), anyhow::Error>) {
+        // match result {
+        //     Ok(_) => {
+        //         self.status = ProcessinStatus::Success;
+        //     }
+        //     Err(err) => {
+        //         self.status = ProcessinStatus::Failed(err);
+        //     }
+        // }
+        // move to global/parent
+    }
+
+    /// WIP: report an error during processing
+    pub fn report_err(&mut self, err: anyhow::Error) {
+        writeln!(self.logger, "Error: {err}").unwrap();
+        self.status = ProcessinStatus::Failed(err);
     }
 }
 
