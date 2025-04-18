@@ -1,10 +1,12 @@
 use std::{
     fs::{self, File},
-    io::{self, BufRead, BufReader, BufWriter, ErrorKind, Write},
+    io::{self, BufRead, BufReader, BufWriter, Write as _},
+    path::PathBuf,
 };
 
 use chardetng::EncodingDetector;
 use encoding_rs::{CoderResult, Encoding};
+use thiserror::Error;
 
 use crate::{
     IterProcessing as _, ProcessingContext, file_processor::FileProcessor,
@@ -22,33 +24,98 @@ pub fn convert_subs_to_utf8(proc_ctx: ProcessingContext, files: &FileProcessor) 
         .filter(SubtitleFile::is_text)
         .process_context(proc_ctx, "Convert subtitles file to utf-8")
         .for_each(|(ctx, sub_file)| {
-            let file = File::open(sub_file.path())
-                .inspect_err(|err| eprintln!("Failed to open '{:?}' : {err:?}", sub_file.path()))
-                .ok();
-            if let Some(file) = file {
-                convert_file_to_utf8(&mut ctx.borrow_mut(), &sub_file, file);
-            } else {
-                todo!()
+            if let Err(err) = convert_file_to_utf8(&mut ctx.borrow_mut(), &sub_file) {
+                ctx.borrow_mut().report_err(err.into());
             }
         });
 }
 
-fn convert_file_to_utf8(proc_ctx: &mut ProcessingContext, sub_file: &SubtitleFile, file: File) {
+//TODO: include file_name/path in `parent` Error/result
+#[derive(Debug, Error)]
+enum ConvertError {
+    #[error("failed to open file '{path}'")]
+    OpenFile {
+        #[source]
+        source: io::Error,
+        path: PathBuf,
+    },
+
+    #[error("failed to fill buffer for file reading")]
+    FillBuf(#[source] io::Error),
+
+    #[error(
+        "No Ascii was found in the start of the file content. Is this is ecpected, report an Issue"
+    )]
+    NoAscii,
+
+    #[error("encoding {encoding:?} is not managed")]
+    EncodingNotManaged { encoding: String },
+
+    #[error("failed to create file '{path:?}'")]
+    CreateFile {
+        #[source]
+        source: io::Error,
+        path: PathBuf,
+    },
+
+    #[error("failed to read line number '{num_line}'")]
+    ReadLine {
+        #[source]
+        source: io::Error,
+        num_line: usize,
+    },
+
+    ///TODO
+    #[error("failed to Write line {line_idx}:'{line_encoded}'")]
+    WriteLine {
+        #[source]
+        source: io::Error,
+        line_idx: usize,
+        line_encoded: String,
+    },
+
+    #[error("failed to rename file '{actual}' to '{new}'")]
+    RenameFile {
+        #[source]
+        source: io::Error,
+        actual: PathBuf,
+        new: PathBuf,
+    },
+
+    #[error("failed to write utf-8 BOM")]
+    WriteUtf8BOM(#[source] io::Error),
+
+    #[error("no enough data in reader to check BOM")]
+    NoEnoughDataToCheckBOM,
+}
+
+fn convert_file_to_utf8(
+    proc_ctx: &mut ProcessingContext,
+    sub_file: &SubtitleFile,
+) -> Result<(), ConvertError> {
+    let filename = sub_file.filename().unwrap();
+    writeln!(proc_ctx, "convert {}", filename.display()).unwrap();
+
+    let file = File::open(sub_file.path()).map_err(|source| ConvertError::OpenFile {
+        source,
+        path: sub_file.path().to_path_buf(),
+    })?;
     let mut reader = BufReader::new(file);
 
-    let is_utf8 = match Encoding::for_bom(reader.fill_buf().unwrap()) {
+    let is_utf8 = match Encoding::for_bom(reader.fill_buf().map_err(ConvertError::FillBuf)?) {
         Some((encoding, size)) => {
             if encoding == encoding_rs::UTF_8 && size == 3 {
                 true
             } else {
-                writeln!(proc_ctx, "Encoding {encoding:?} is not managed").unwrap();
-                todo!()
+                return Err(ConvertError::EncodingNotManaged {
+                    encoding: format!("{encoding:?}"),
+                });
             }
         }
         None => false,
     };
 
-    let has_utf8_bom = has_utf8_bom(&mut reader).unwrap();
+    let has_utf8_bom = has_utf8_bom(&mut reader)?;
     assert!(is_utf8 == has_utf8_bom);
     if has_utf8_bom {
         // check
@@ -56,13 +123,10 @@ fn convert_file_to_utf8(proc_ctx: &mut ProcessingContext, sub_file: &SubtitleFil
             .lines()
             .enumerate()
             .try_for_each(|(num_line, line)| {
-                let _line = line.map_err(|err| {
-                    io::Error::new(ErrorKind::Other, format!("Line {num_line} : {err}"))
-                })?;
+                let _line = line.map_err(|source| ConvertError::ReadLine { source, num_line })?;
 
-                Ok::<_, io::Error>(())
-            })
-            .unwrap();
+                Ok::<_, ConvertError>(())
+            })?;
         writeln!(
             proc_ctx,
             "File `{:?}` is valid utf-8",
@@ -72,23 +136,47 @@ fn convert_file_to_utf8(proc_ctx: &mut ProcessingContext, sub_file: &SubtitleFil
     } else {
         let out_filename = sub_file.gen_new_name("old");
         //TODO: check if old file already exist
-        fs::rename(sub_file.path(), out_filename).unwrap();
-        let mut writer = BufWriter::new(File::create(sub_file.path()).unwrap());
+        fs::rename(sub_file.path(), out_filename.as_path()).map_err(|source| {
+            ConvertError::RenameFile {
+                source,
+                actual: sub_file.path().to_path_buf(),
+                new: out_filename,
+            }
+        })?;
+        let mut writer = BufWriter::new(File::create(sub_file.path()).map_err(|source| {
+            ConvertError::CreateFile {
+                source,
+                path: sub_file.path().to_path_buf(),
+            }
+        })?);
 
-        //Write BOM UTF8 marker : EF BB BF
-        writer.write_all(&UTF8_BOM).unwrap();
+        writer
+            .write_all(&UTF8_BOM)
+            .map_err(ConvertError::WriteUtf8BOM)?;
 
         let mut encoding_detector = EncodingDetector::new();
-        let buf = reader.fill_buf().unwrap();
+        let buf = reader.fill_buf().map_err(ConvertError::FillBuf)?;
         let has_no_ascii = encoding_detector.feed(buf, true);
+        if !has_no_ascii {
+            return Err(ConvertError::NoAscii);
+        }
         assert!(has_no_ascii); //TODO: if only ascii : new more data, of utf8 compatible
         let encoding = encoding_detector.guess(None, true);
+
+        //TODO: read all line to check all encoding errors
         let mut decoder = encoding.new_decoder();
 
-        let mut _line_idx = 1;
+        let mut line_idx = 1;
         let mut line_read = Vec::with_capacity(128);
         let mut line_encoded = String::with_capacity(256);
-        while reader.read_until(b'\n', &mut line_read).unwrap() > 0 {
+        while reader
+            .read_until(b'\n', &mut line_read)
+            .map_err(|source| ConvertError::ReadLine {
+                source,
+                num_line: line_idx,
+            })?
+            > 0
+        {
             let (code_res, size_read, replacement_done) =
                 decoder.decode_to_string(line_read.as_slice(), &mut line_encoded, false);
             assert!(code_res == CoderResult::InputEmpty);
@@ -96,11 +184,15 @@ fn convert_file_to_utf8(proc_ctx: &mut ProcessingContext, sub_file: &SubtitleFil
             assert!(!replacement_done);
 
             //TODO: read all line to check all encoding errors
-            writer.write_all(line_encoded.as_bytes()).unwrap();
-            //eprintln!("Line {line_idx} Utf8 error : {err}");
+            writer
+                .write_all(line_encoded.as_bytes())
+                .map_err(|source| ConvertError::WriteLine {
+                    source,
+                    line_idx,
+                    line_encoded: line_encoded.clone(),
+                })?;
 
-            //eprintln!("Line {line_idx}");
-            _line_idx += 1;
+            line_idx += 1;
             line_encoded.clear();
             line_read.clear();
         }
@@ -125,16 +217,18 @@ fn convert_file_to_utf8(proc_ctx: &mut ProcessingContext, sub_file: &SubtitleFil
         //     })
         //     .unwrap();
     }
+    Ok(())
 }
 
-fn has_utf8_bom<R>(reader: &mut R) -> Result<bool, io::Error>
+fn has_utf8_bom<R>(reader: &mut R) -> Result<bool, ConvertError>
 where
     R: BufRead,
 {
     let data = reader
-        .fill_buf()?
+        .fill_buf()
+        .map_err(ConvertError::FillBuf)?
         .first_chunk::<3>()
-        .ok_or_else(|| io::Error::new(ErrorKind::Other, "no enough data in reader to check BOM"))?;
+        .ok_or(ConvertError::NoEnoughDataToCheckBOM)?;
     let has_uth8_bom = *data == UTF8_BOM;
     if has_uth8_bom {
         reader.consume(UTF8_BOM.len());
