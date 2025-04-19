@@ -3,7 +3,7 @@ use crate::{
     file_processor::FileProcessor,
     matroska::{
         CodecId, ContentDecoder, FrameHandler, PgsFrameHandler, SrtWriter, VobSubFrameHandler,
-        WebvttWriter,
+        WebvttWriter, write_info,
     },
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
@@ -41,10 +41,7 @@ fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &Path) {
     let mut mkv = MatroskaFile::open(file).unwrap();
 
     let info = mkv.info();
-    writeln!(cur_ctx.borrow_mut(), "Media `{path:?}` :\n{info:#?}").unwrap();
-
-    let info = mkv.info();
-    writeln!(cur_ctx.borrow_mut(), "Media info :\n{info:#?}").unwrap();
+    write_info(&mut *cur_ctx.borrow_mut(), info);
 
     let timestamp_scale = info.timestamp_scale();
     assert!(timestamp_scale == NonZero::new(1_000_000).unwrap());

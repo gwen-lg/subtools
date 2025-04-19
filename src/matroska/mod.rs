@@ -15,6 +15,7 @@ pub use vobsub::VobSubFrameHandler;
 pub use webvtt::WebvttWriter;
 
 use compact_str::CompactString;
+use std::{borrow::Cow, io::Write, time::Duration};
 use subtile::time::{TimePoint, TimeSpan};
 
 /// Define the interface to handle a frame from source (like matroska)
@@ -32,6 +33,23 @@ pub const fn frame_time_span(timestamp: u64, duration: u64) -> TimeSpan {
     let time_start = TimePoint::from_msecs(timestamp as i64);
     let time_end = TimePoint::from_msecs((timestamp + duration) as i64);
     TimeSpan::new(time_start, time_end)
+}
+
+/// Write info of the mkv metadata.
+pub fn write_info<W: Write>(mut writer: W, info: &matroska_demuxer::Info) {
+    let title = info.title().unwrap_or("<none>");
+    let duration = info.duration().map_or_else(
+        || Cow::from("<not set>"),
+        |duration| {
+            let duration = Duration::from_secs_f64(duration);
+            Cow::from(format!("{duration:?}"))
+        },
+    );
+    writeln!(
+        writer,
+        "Media info :\n\tTitle: {title}\n\tDuration: {duration}"
+    )
+    .unwrap();
 }
 
 /// Define information for dump setup.
