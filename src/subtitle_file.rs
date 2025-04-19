@@ -25,6 +25,8 @@ pub enum SubtitleFileError {
     MissingExtension,
 }
 
+use crate::matroska::CodecId;
+
 /// Enumeration of different recognized subtitles file formats.
 #[derive(Clone, Copy, Debug)]
 pub enum SubtitleFormat {
@@ -71,6 +73,18 @@ impl SubtitleFormat {
 impl fmt::Display for SubtitleFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
+    }
+}
+
+impl From<CodecId> for SubtitleFormat {
+    fn from(codec_id: CodecId) -> Self {
+        match codec_id {
+            CodecId::Pgs => Self::Pgs,
+            CodecId::SubRip => Self::Srt,
+            CodecId::VobSub => Self::VobSub,
+            CodecId::WebVTT => Self::WebVtt,
+            CodecId::Ass => todo!(),
+        }
     }
 }
 
