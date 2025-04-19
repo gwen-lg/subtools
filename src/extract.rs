@@ -98,7 +98,6 @@ fn extract_subs_mkv(proc_ctx: &ProcessingContext, path: &Path) {
                             None
                         }
                     })
-            //.map(|(_, duration)| duration.map(|val| val.get()))
             {
                 let (frame_decoder, decoder, default_duration) = &mut tracks_info[select_idx];
                 let default_duration = default_duration.map(NonZero::get);
@@ -117,6 +116,7 @@ fn create_frame_decoder(
     mut filename: PathBuf,
 ) -> Box<dyn FrameHandler> {
     match codec {
+        CodecId::Ass => todo!(),
         CodecId::Pgs => {
             filename.set_extension("sup");
             let file = BufWriter::new(File::create(filename).unwrap());
@@ -146,9 +146,6 @@ fn create_frame_decoder(
             let file = BufWriter::new(File::create(filename).unwrap());
             let codec_private = track.codec_private();
             Box::new(WebvttWriter::new(file, codec_private))
-        }
-        _ => {
-            todo!()
         }
     }
 }
