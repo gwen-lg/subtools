@@ -2,8 +2,8 @@ use crate::{
     IterProcessing, ProcessingContext, SubProcess,
     file_processor::FileProcessor,
     matroska::{
-        CodecId, ContentDecoder, FrameHandler, PgsFrameHandler, SrtWriter, VobSubFrameHandler,
-        WebvttWriter, write_info,
+        CodecId, ContentDecoder, DumpInfo, FrameHandler, PgsFrameHandler, SrtWriter,
+        VobSubFrameHandler, WebvttWriter, write_info,
     },
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
@@ -119,9 +119,21 @@ fn create_frame_decoder(
     match codec {
         CodecId::Ass => todo!(),
         CodecId::Pgs => {
+            let prefix: String = filename
+                .as_path()
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap_or("frame")
+                .into();
+
             filename.set_extension("sup");
             let file = BufWriter::new(File::create(filename).unwrap());
-            Box::new(PgsFrameHandler::new(file))
+            let mut pgs_frame_handler = Box::new(PgsFrameHandler::new(file));
+
+            pgs_frame_handler
+                .dump_raw_frame(DumpInfo::new(&prefix, track.language().unwrap_or("eng")));
+            pgs_frame_handler
         }
         CodecId::SubRip => {
             filename.set_extension("srt");
@@ -148,5 +160,17 @@ fn create_frame_decoder(
             let codec_private = track.codec_private();
             Box::new(WebvttWriter::new(file, codec_private))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_extract_pgs() {
+        //panic!("test test");
+        // let app_ctx = AppContext::new();
+        // let test_ctx = app_ctx.create_sub_process("Convert subtitles files to UTF-8");
+        // extract_subs_mkv(test_ctx, "tests/data/subtiltes_pgs.mkv");
+        //let mkv = MatroskaFile::open(File::open().unwrap()).unwrap();
     }
 }

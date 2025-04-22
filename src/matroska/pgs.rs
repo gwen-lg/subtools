@@ -53,10 +53,12 @@ where
         let pts = u32::to_be_bytes(u32::try_from(timestamp * 90).unwrap());
         sup_header[2..6].copy_from_slice(&pts);
 
-        SegmentSplitter::from(content).for_each(|seg_buf| {
-            self.writer.write_all(&sup_header).unwrap();
-            self.writer.write_all(seg_buf.unwrap().buffer()).unwrap();
-        });
+        SegmentSplitter::from(content)
+            .map(|seg_buf| seg_buf.unwrap()) //TODO: manage error
+            .for_each(|seg_buf| {
+                self.writer.write_all(&sup_header).unwrap();
+                self.writer.write_all(seg_buf.buffer()).unwrap();
+            });
 
         if let Some(dump_info) = &self.dump_raw_frame {
             dump_raw_frame(dump_info, timestamp, content);
