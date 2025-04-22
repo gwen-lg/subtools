@@ -101,3 +101,55 @@ fn dump_frame_image(dump_info: &DumpInfo, timestamp: u64, content: &[u8]) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PgsFrameHandler;
+    use crate::matroska::FrameHandler as _;
+    use std::{
+        fs::File,
+        io::{Cursor, Read as _},
+    };
+
+    #[test]
+    fn test_dumpframe_580_eng() {
+        let mut in_data = Vec::new();
+        File::open("tests/data/subtitles_pgs_frame_580.eng.raw")
+            .unwrap()
+            .read_to_end(&mut in_data)
+            .unwrap();
+
+        let mut out_data = Vec::new();
+        let mut handler = PgsFrameHandler::new(Cursor::new(&mut out_data));
+        handler.push_frame(580u64, None, &in_data);
+
+        let mut expected_data = Vec::new();
+        File::open("tests/data/subtitles_pgs.0.eng.sup")
+            .unwrap()
+            .read_to_end(&mut expected_data)
+            .unwrap();
+
+        assert_eq!(out_data, expected_data[0..out_data.len()]);
+    }
+
+    #[test]
+    fn test_dumpframe_580_fre() {
+        let mut in_data = Vec::new();
+        File::open("tests/data/subtitles_pgs_frame_580.fre.raw")
+            .unwrap()
+            .read_to_end(&mut in_data)
+            .unwrap();
+
+        let mut out_data = Vec::new();
+        let mut handler = PgsFrameHandler::new(Cursor::new(&mut out_data));
+        handler.push_frame(580u64, None, &in_data);
+
+        let mut expected_data = Vec::new();
+        File::open("tests/data/subtitles_pgs.1.fre.sup")
+            .unwrap()
+            .read_to_end(&mut expected_data)
+            .unwrap();
+
+        assert_eq!(out_data, expected_data[0..out_data.len()]);
+    }
+}
