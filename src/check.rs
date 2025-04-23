@@ -123,14 +123,17 @@ mod tests {
     fn test_ok_sublines() {
         let subtitles = vec!["First", "second entry, bla", "third line", "end"];
         let report = basic_subline_check(subtitles);
-        assert_eq!(report, None);
+        assert!(report.is_empty());
     }
 
     #[test]
     fn test_empty_sublines() {
         let subtitles = vec!["First", "second entry, bla", "", "end"];
         let report = basic_subline_check(subtitles);
-        assert_eq!(report, Some(String::from("sub 2 is empty\n")));
+        assert_eq!(
+            format!("{report:?}"),
+            String::from("Report { errors: [\"sub 2 is empty\"] }")
+        );
     }
 
     #[test]
@@ -138,8 +141,8 @@ mod tests {
         let subtitles = vec!["First", "second entry,\n bla", "third line", "end"];
         let report = basic_subline_check(subtitles);
         assert_eq!(
-            report,
-            Some(String::from("sub 1 start with withespace character\n"))
+            format!("{report:?}"),
+            String::from("Report { errors: [\"sub 1 start with withespace character\"] }")
         );
     }
 
@@ -148,8 +151,8 @@ mod tests {
         let subtitles = vec!["First", "second entry, \nbla", "third line", "end"];
         let report = basic_subline_check(subtitles);
         assert_eq!(
-            report,
-            Some(String::from("sub 1 end with withespace character\n"))
+            format!("{report:?}"),
+            String::from("Report { errors: [\"sub 1 end with withespace character\"] }")
         );
     }
 }
