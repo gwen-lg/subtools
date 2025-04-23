@@ -96,3 +96,42 @@ where
         Some(report)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::basic_subline_check;
+
+    #[test]
+    fn test_ok_sublines() {
+        let subtitles = vec!["First", "second entry, bla", "third line", "end"];
+        let report = basic_subline_check(subtitles);
+        assert_eq!(report, None);
+    }
+
+    #[test]
+    fn test_empty_sublines() {
+        let subtitles = vec!["First", "second entry, bla", "", "end"];
+        let report = basic_subline_check(subtitles);
+        assert_eq!(report, Some(String::from("sub 2 is empty\n")));
+    }
+
+    #[test]
+    fn test_start_whitespace() {
+        let subtitles = vec!["First", "second entry,\n bla", "third line", "end"];
+        let report = basic_subline_check(subtitles);
+        assert_eq!(
+            report,
+            Some(String::from("sub 1 start with withespace character\n"))
+        );
+    }
+
+    #[test]
+    fn test_end_whitespace() {
+        let subtitles = vec!["First", "second entry, \nbla", "third line", "end"];
+        let report = basic_subline_check(subtitles);
+        assert_eq!(
+            report,
+            Some(String::from("sub 1 end with withespace character\n"))
+        );
+    }
+}
