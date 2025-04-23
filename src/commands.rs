@@ -10,4 +10,7 @@ pub enum Commands {
 
     /// Extract subtitle track
     Extract,
+
+    /// Check from predefined rules.
+    Check,
 }

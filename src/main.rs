@@ -7,7 +7,7 @@ use clap::Parser;
 use commands::Commands;
 use std::{env, ffi::OsString, path::PathBuf};
 use subtools::{
-    AppContext, FileProcessor, SubProcess, convert_subs_to_utf8, extract_subs, ocr_subs,
+    AppContext, FileProcessor, SubProcess, check_subs, convert_subs_to_utf8, extract_subs, ocr_subs,
 };
 
 /// A CLI application to manipulate subtitles files.
@@ -41,6 +41,10 @@ fn main() -> anyhow::Result<()> {
         Commands::Extract => {
             let proc_ctx = app_ctx.create_sub_process("Extract subtitles from media file");
             extract_subs(proc_ctx, &files_processor);
+        }
+        Commands::Check => {
+            let proc_ctx = app_ctx.create_sub_process("Check subtitles text with regex");
+            check_subs(proc_ctx, &files_processor);
         }
     }
     Ok(())

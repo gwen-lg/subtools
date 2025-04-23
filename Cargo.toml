@@ -21,6 +21,7 @@ compact_str = "0.9"
 encoding_rs = "0.8"
 flate2 = { version = "1.1", features = [], default-features = false }
 matroska-demuxer = "0.7"
+srtlib = "0.2"
 subtile = "0.4"
 subtile-ocr = "0.2"
 thiserror = "2.0"

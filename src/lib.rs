@@ -2,6 +2,7 @@
 //! A command line utilities is also provided.
 
 mod app_context;
+mod check;
 mod extract;
 mod file_encoding;
 mod file_processor;
@@ -13,6 +14,7 @@ pub use app_context::{
     AppContext, IterProcessing, ProcErrLogger, ProcessingContext, ProcessingContextIter,
     ProcessingProgress, SubProcess,
 };
+pub use check::check_subs;
 pub use extract::extract_subs;
 pub use file_encoding::convert_subs_to_utf8;
 pub use file_processor::FileProcessor;
