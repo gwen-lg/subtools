@@ -1,7 +1,30 @@
 use crate::{FileProcessor, IterProcessing, ProcessingContext, SubProcess, SubtitleFile};
 use srtlib::{ParsingError, Subtitles};
-use std::{fmt::Write, path::PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
+
+type ReportEntry = String;
+
+/// Define the report content for a data.
+#[derive(Debug, Default)]
+struct Report {
+    entries: Vec<ReportEntry>,
+}
+
+impl Report {
+    pub fn new() -> Self {
+        Self {
+            entries: Vec::default(),
+        }
+    }
+    pub fn push(&mut self, error: ReportEntry) {
+        self.entries.push(error);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
 
 #[derive(Debug, Error)]
 enum CheckError {
@@ -12,8 +35,8 @@ enum CheckError {
         file: PathBuf,
     },
 
-    #[error("Some correction can be done in subtitle : {0}")]
-    Report(String),
+    #[error("Some correction can be done in subtitle : {0:?}")]
+    Report(Report),
 }
 
 /// Check text subtitles with predefined and custom rules.
@@ -51,16 +74,15 @@ fn check_text_subs(proc_ctx: &ProcessingContext, file: &SubtitleFile) -> Result<
     //TODO: add other/configurable check
 
     let sub_lines = subs.into_iter().map(|s| s.text);
-    if let Some(report) = basic_subline_check(sub_lines) {
-        return Err(CheckError::Report(report));
+    let report = basic_subline_check(sub_lines);
+    if report.is_empty() {
+        Ok(())
+    } else {
+        Err(CheckError::Report(report))
     }
-    Ok(())
 }
 
 //TODO: add format check (ex: subline number in srt)
-
-//TODO: use a true type more complex
-type Report = Option<String>;
 
 /// Process some basic check to subline texte.
 ///
@@ -74,27 +96,23 @@ where
     T: AsRef<str>,
     S: IntoIterator<Item = T>, //TODO: use typed Item (with contain but also info like idx, line number, etc)
 {
-    let mut report = String::new();
+    let mut report = Report::new();
     sublines.into_iter().enumerate().for_each(|(idx, subline)| {
         if subline.as_ref().is_empty() {
-            writeln!(&mut report, "sub {idx} is empty").unwrap();
+            report.push(format!("sub {idx} is empty"));
         } else {
             subline.as_ref().lines().for_each(|line| {
                 if line.starts_with(char::is_whitespace) {
-                    writeln!(&mut report, "sub {idx} start with withespace character").unwrap();
+                    report.push(format!("sub {idx} start with withespace character"));
                 }
                 if line.ends_with(char::is_whitespace) {
-                    writeln!(&mut report, "sub {idx} end with withespace character").unwrap();
+                    report.push(format!("sub {idx} end with withespace character"));
                 }
             });
         }
     });
 
-    if report.is_empty() {
-        None
-    } else {
-        Some(report)
-    }
+    report
 }
 
 #[cfg(test)]
