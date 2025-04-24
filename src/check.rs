@@ -1,6 +1,6 @@
 use crate::{FileProcessor, IterProcessing, ProcessingContext, SubProcess, SubtitleFile};
 use srtlib::{ParsingError, Subtitles};
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf};
 use thiserror::Error;
 
 type ReportEntry = String;
@@ -26,6 +26,14 @@ impl Report {
     }
 }
 
+impl Display for Report {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.entries
+            .iter()
+            .try_for_each(|entry| writeln!(f, "- {entry}"))
+    }
+}
+
 #[derive(Debug, Error)]
 enum CheckError {
     #[error("failed to parse file `{file}' as srt/subrip format")]
@@ -35,7 +43,7 @@ enum CheckError {
         file: PathBuf,
     },
 
-    #[error("Some correction can be done in subtitle : {0:?}")]
+    #[error("some correction can be done in subtitle : \n{0}")]
     Report(Report),
 }
 
