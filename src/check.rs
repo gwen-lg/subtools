@@ -1,6 +1,7 @@
 use crate::{FileProcessor, IterProcessing, ProcessingContext, SubProcess, SubtitleFile};
+use regex::Regex;
 use srtlib::{ParsingError, Subtitles};
-use std::{fmt::Display, path::PathBuf};
+use std::{fmt::Display, path::PathBuf, sync::LazyLock};
 use thiserror::Error;
 
 type ReportEntry = String;
@@ -115,6 +116,15 @@ where
                 }
                 if line.ends_with(char::is_whitespace) {
                     report.push(format!("sub {idx} end with withespace character"));
+                }
+
+                //Check with regex
+                //TODO: only for french
+                static CA_CEDILLE: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new("^Ca (.*)").unwrap());
+
+                if CA_CEDILLE.is_match(line) {
+                    report.push(format!("sub {idx} have `Ca` instead of `Ça`"));
                 }
             });
         }
