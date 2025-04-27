@@ -227,14 +227,33 @@ where
                         .push(format!("sub {idx} have `Ca` instead of `Ça`"));
                 }
 
-                static CA_REPLACE: LazyLock<Regex> = LazyLock::new(|| Regex::new("Ca ").unwrap());
-                let new_line = CA_REPLACE.replace(new_line.as_ref(), "Ça ");
+                static CA_REPLACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(" ca ").unwrap());
+                let new_line = CA_REPLACE.replace_all(new_line.as_ref(), " ça ");
 
                 static IL_REPLACE: LazyLock<Regex> = LazyLock::new(|| Regex::new("II ").unwrap());
-                let new_line = IL_REPLACE.replace(new_line.as_ref(), "Il ");
+                let new_line = IL_REPLACE.replace_all(new_line.as_ref(), "Il ");
 
                 static ILS_REPLACE: LazyLock<Regex> = LazyLock::new(|| Regex::new("IIs ").unwrap());
-                let new_line = ILS_REPLACE.replace(new_line.as_ref(), "Ils ");
+                let new_line = ILS_REPLACE.replace_all(new_line.as_ref(), "Ils ");
+
+                // fin de ligne ` l` => ` !`
+                static EXCLAMATION_MARK: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(" [li]$").unwrap());
+                let new_line = EXCLAMATION_MARK.replace_all(new_line.as_ref(), " !");
+
+                static MULTIPLE_SPACES: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new("/ {2,}/g").unwrap());
+                let new_line = MULTIPLE_SPACES.replace_all(new_line.as_ref(), " ");
+
+                // Remove space before comma
+                static SPACE_BEFORE_COMMA: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(" ,").unwrap());
+                let new_line = SPACE_BEFORE_COMMA.replace_all(new_line.as_ref(), ",");
+
+                // Add missing space after comma
+                static SPACE_AFTER_COMMA: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r",(?<after>\w)").unwrap());
+                let new_line = SPACE_AFTER_COMMA.replace_all(new_line.as_ref(), ", $after");
 
                 new_line.to_string()
             });
