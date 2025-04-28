@@ -1,4 +1,7 @@
-use crate::{FileProcessor, IterProcessing, ProcessingContext, SubProcess, SubtitleFile};
+use crate::{
+    FileProcessor, IterProcessing, ProcessingContext, SubProcess, SubtitleFile,
+    regex::{RegexCheck, RegexOpReplace, RegexReplace},
+};
 use regex::Regex;
 use srtlib::{ParsingError, Subtitle, Subtitles};
 use std::{cell::RefCell, fmt::Display, path::PathBuf, rc::Rc, sync::LazyLock};
@@ -172,6 +175,8 @@ fn text_subs_fixup(proc_ctx: &ProcessingContext, file: &SubtitleFile) -> Result<
         let subtitles = Subtitles::new_from_vec(subtitles);
         let mut out_filename = file.path().to_path_buf();
         out_filename.set_extension("fixed.srt");
+
+        //TODO: Write Utf-8 BOM, help for use with mkvtoolinx GUI
         subtitles
             .write_to_file(&out_filename, None)
             .map_err(|source| CheckError::WriteToFile {
@@ -182,6 +187,30 @@ fn text_subs_fixup(proc_ctx: &ProcessingContext, file: &SubtitleFile) -> Result<
         Err(CheckError::Report(report))
     }
 }
+
+// HACK Hardcode
+// HARDCODED
+// static REGEX_CHECK: LazyLock<RegexOpCheck> =
+//     LazyLock::new(|| RegexOpCheck::try_from("todo").unwrap());
+
+static REGEX_REPLACE: LazyLock<Vec<RegexOpReplace>> = LazyLock::new(|| {
+    vec![
+        // replace multiple space with one space
+        RegexOpReplace::try_from(("/ {2,}/g", " ")).unwrap(),
+        RegexOpReplace::try_from(("^Ca (.*)", "Ça $1")).unwrap(), //TODO: check validity
+        RegexOpReplace::try_from((" ca ", " ça ")).unwrap(),
+        RegexOpReplace::try_from(("^II ", "Il ")).unwrap(),
+        RegexOpReplace::try_from((". II ", ". Il ")).unwrap(), //TODO: regroup with previous ?
+        RegexOpReplace::try_from(("^IIs ", "Ils ")).unwrap(),
+        RegexOpReplace::try_from((". IIs ", ". Ils ")).unwrap(), //TODO: regroup with previous ?
+        // fin de ligne ` l` => ` !`
+        RegexOpReplace::try_from((" [li]$", " !")).unwrap(),
+        // Remove space before comma
+        RegexOpReplace::try_from((" ,", ",")).unwrap(),
+        // Add missing space after comma
+        RegexOpReplace::try_from((r",(?<after>\w)", ", $after")).unwrap(),
+    ]
+});
 
 //TODO: impl Iterator<Item = String> / use Cow<_, str> ?
 fn basic_subline_fixup<Si>(sublines: Si) -> (Vec<Subtitle>, Report)
@@ -216,44 +245,15 @@ where
                 }
                 let new_line = line.trim().to_string();
 
-                //Check with regex
-                //TODO: only for french
-                static CA_CEDILLE: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new("^Ca (.*)").unwrap());
+                REGEX_REPLACE.iter().for_each(|regex| {
+                    if regex.check(new_line.as_str()) {
+                        report.borrow_mut().push(format!("regex `{regex:?}` found"));
+                    }
+                });
 
-                if CA_CEDILLE.is_match(line) {
-                    report
-                        .borrow_mut()
-                        .push(format!("sub {idx} have `Ca` instead of `Ça`"));
-                }
-
-                static CA_REPLACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(" ca ").unwrap());
-                let new_line = CA_REPLACE.replace_all(new_line.as_ref(), " ça ");
-
-                static IL_REPLACE: LazyLock<Regex> = LazyLock::new(|| Regex::new("II ").unwrap());
-                let new_line = IL_REPLACE.replace_all(new_line.as_ref(), "Il ");
-
-                static ILS_REPLACE: LazyLock<Regex> = LazyLock::new(|| Regex::new("IIs ").unwrap());
-                let new_line = ILS_REPLACE.replace_all(new_line.as_ref(), "Ils ");
-
-                // fin de ligne ` l` => ` !`
-                static EXCLAMATION_MARK: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(" [li]$").unwrap());
-                let new_line = EXCLAMATION_MARK.replace_all(new_line.as_ref(), " !");
-
-                static MULTIPLE_SPACES: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new("/ {2,}/g").unwrap());
-                let new_line = MULTIPLE_SPACES.replace_all(new_line.as_ref(), " ");
-
-                // Remove space before comma
-                static SPACE_BEFORE_COMMA: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(" ,").unwrap());
-                let new_line = SPACE_BEFORE_COMMA.replace_all(new_line.as_ref(), ",");
-
-                // Add missing space after comma
-                static SPACE_AFTER_COMMA: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r",(?<after>\w)").unwrap());
-                let new_line = SPACE_AFTER_COMMA.replace_all(new_line.as_ref(), ", $after");
+                let new_line = REGEX_REPLACE.iter().fold(new_line, |val, regex| {
+                    regex.replace(val.as_ref()).into_owned()
+                });
 
                 new_line.to_string()
             });

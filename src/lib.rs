@@ -8,6 +8,7 @@ mod file_encoding;
 mod file_processor;
 pub mod matroska; //TODO: move in a crate (subtile ? or subtile-matroska ?)
 mod ocr;
+mod regex;
 mod subtitle_file;
 
 pub use app_context::{
