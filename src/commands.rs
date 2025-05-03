@@ -13,4 +13,7 @@ pub enum Commands {
 
     /// Check from predefined rules.
     Check,
+
+    /// Spellcheck
+    Spellcheck,
 }
