@@ -23,6 +23,7 @@ flate2 = { version = "1.1", features = [], default-features = false }
 #hunspell-rs = { version = "0.4", default-features = false }
 matroska-demuxer = "0.7"
 regex = "1.12"
+spellbook = "0.4"
 srtlib = "0.2"
 subtile = "0.4"
 subtile-ocr = "0.2"

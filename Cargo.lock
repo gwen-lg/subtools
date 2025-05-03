@@ -289,7 +289,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -421,6 +421,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "foldhash"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+
+[[package]]
 name = "getrandom"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -446,6 +452,12 @@ dependencies = [
  "ahash",
  "allocator-api2",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.15.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
 
 [[package]]
 name = "heck"
@@ -922,6 +934,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "spellbook"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28332bb44a9e7e7f1aa43ce4d97b6d1b27323a1fc160d4cfe0089245e1750845"
+dependencies = [
+ "foldhash",
+ "hashbrown 0.15.4",
+]
+
+[[package]]
 name = "srtlib"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -994,6 +1016,7 @@ dependencies = [
  "flate2",
  "matroska-demuxer",
  "regex",
+ "spellbook",
  "srtlib",
  "subtile",
  "subtile-ocr",
@@ -1566,7 +1589,7 @@ dependencies = [
  "autocfg",
  "cfg-if",
  "dirs",
- "hashbrown",
+ "hashbrown 0.14.5",
  "indoc",
  "itertools",
  "lazy_static",
