@@ -196,19 +196,33 @@ fn text_subs_fixup(proc_ctx: &ProcessingContext, file: &SubtitleFile) -> Result<
 static REGEX_REPLACE: LazyLock<Vec<RegexOpReplace>> = LazyLock::new(|| {
     vec![
         // replace multiple space with one space
-        RegexOpReplace::try_from(("/ {2,}/g", " ")).unwrap(),
+        RegexOpReplace::try_from((" {2,}", " ")).unwrap(),
+        // Punctuation rules
+        // Remove space before dot
+        RegexOpReplace::try_from((r"\s+\.{1,1}", ".")).unwrap(), // "/ {2,}/g"
+        // Remove space between point and number if point is the decimal separator
+        RegexOpReplace::try_from((r"(?<f>\d). {2,}(?<s>\d)", "$f.$s")).unwrap(),
+        // Remove space before comma
+        RegexOpReplace::try_from((" ,", ",")).unwrap(),
+        // Replace two apostrophe with quotation mark
+        RegexOpReplace::try_from(("''", "\"")).unwrap(),
         RegexOpReplace::try_from(("^Ca (.*)", "Ça $1")).unwrap(), //TODO: check validity
         RegexOpReplace::try_from((" ca ", " ça ")).unwrap(),
         RegexOpReplace::try_from(("^II ", "Il ")).unwrap(),
         RegexOpReplace::try_from((". II ", ". Il ")).unwrap(), //TODO: regroup with previous ?
         RegexOpReplace::try_from(("^IIs ", "Ils ")).unwrap(),
         RegexOpReplace::try_from((". IIs ", ". Ils ")).unwrap(), //TODO: regroup with previous ?
+        // Fix percent sign
+        RegexOpReplace::try_from(("%/%", "%")).unwrap(),
+        RegexOpReplace::try_from((r"\*/\*", "%")).unwrap(),
+        RegexOpReplace::try_from(("°%", "%")).unwrap(),
+        RegexOpReplace::try_from(("ïï", "ï")).unwrap(),
         // fin de ligne ` l` => ` !`
         RegexOpReplace::try_from((" [li]$", " !")).unwrap(),
-        // Remove space before comma
-        RegexOpReplace::try_from((" ,", ",")).unwrap(),
         // Add missing space after comma
         RegexOpReplace::try_from((r",(?<after>\w)", ", $after")).unwrap(),
+        // Specific
+        RegexOpReplace::try_from(("4o", "40")).unwrap(),
     ]
 });
 
