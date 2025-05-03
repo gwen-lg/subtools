@@ -90,6 +90,7 @@ fn check_text_subs(proc_ctx: &ProcessingContext, file: &SubtitleFile) -> Result<
     //     file: filename.into(),
     // })?;
 
+    //TODO: move this in SubtitleFile
     let subs =
         Subtitles::parse_from_file(filename, None).map_err(|source| CheckError::ParseSrt {
             source,
