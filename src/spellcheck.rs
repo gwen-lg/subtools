@@ -6,6 +6,10 @@ use zspell::Dictionary;
 
 use crate::{FileProcessor, IterProcessing as _, ProcessingContext, SubProcess as _, SubtitleFile};
 
+//TODO: test SymSpell
+// crate : https://crates.io/crates/symspell / https://github.com/reneklacan/symspell
+// dictionary : https://github.com/wolfgarbe/SymSpell/tree/master/SymSpell.FrequencyDictionary
+
 #[derive(Debug, Error)]
 enum SpellCheckError {
     #[error("failed to parse file `{file}' as srt/subrip format")]
