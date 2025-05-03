@@ -74,19 +74,25 @@ fn spellcheck_text_subs(
     Ok(())
 }
 
-const FR_AFF: &str = include_str!("/usr/share/hunspell/fr_FR.aff");
-const FR_DIC: &str = include_str!("/usr/share/hunspell/fr_FR.dic");
+// const FR_AFF: &str = include_str!("/usr/share/hunspell/fr_FR.aff");
+// const FR_DIC: &str = include_str!("/usr/share/hunspell/fr_FR.dic");
+const FR_AFF: &str = include_str!("../dictionaries/fr/index.aff");
+const FR_DIC: &str = include_str!("../dictionaries/fr/index.dic");
 
 fn load_fr_dic() -> Result<Dictionary, SpellCheckError> {
     // Use the builder pattern to create our `Dictionary` object
     let dict: Dictionary = zspell::builder()
         .config_str(FR_AFF)
         .dict_str(FR_DIC)
-        //.personal_str(HACK_CUSTOM_DICT)
+        .personal_str(HACK_CUSTOM_DICT)
         .build()
         .map_err(SpellCheckError::LoadDictionary)?;
     Ok(dict)
 }
+
+const HACK_CUSTOM_DICT: &str = "Leonard
+Raj
+Sheldon";
 
 //Wip
 // fn load_hunspell(lang: Lang) -> Hunspell {
