@@ -1,6 +1,6 @@
 use crate::{
     FileProcessor, IterProcessing, ProcessingContext, SubProcess, SubtitleFile,
-    regex::{RegexCheck, RegexOpReplace, RegexReplace},
+    regex::{RegexCheck, RegexOpCheck, RegexOpReplace, RegexReplace},
 };
 use regex::Regex;
 use srtlib::{ParsingError, Subtitle, Subtitles};
@@ -226,6 +226,13 @@ static REGEX_REPLACE: LazyLock<Vec<RegexOpReplace>> = LazyLock::new(|| {
     ]
 });
 
+static REGEX_FILTER_LINE: LazyLock<Vec<RegexOpCheck>> = LazyLock::new(|| {
+    vec![
+        // Lang subtitle line
+        RegexOpCheck::try_from(r"^\[French\]$").unwrap(),
+    ]
+});
+
 //TODO: impl Iterator<Item = String> / use Cow<_, str> ?
 fn basic_subline_fixup<Si>(sublines: Si) -> (Vec<Subtitle>, Report)
 where
@@ -239,6 +246,11 @@ where
                 report
                     .borrow_mut()
                     .push(format!("remove sub {} as empty", subline.num)); //TODO: display timing
+                None
+            } else if line_should_be_filtered(&subline.text) {
+                report
+                    .borrow_mut()
+                    .push(format!("remove sub {} as filtered from regex", subline.num)); //TODO: display timing, regex
                 None
             } else {
                 Some(subline)
@@ -287,6 +299,9 @@ where
     (sublines, report.take())
 }
 
+fn line_should_be_filtered(text: &str) -> bool {
+    REGEX_FILTER_LINE.iter().any(|regex| regex.check(text))
+}
 #[cfg(test)]
 mod tests {
     use super::basic_subline_check;
