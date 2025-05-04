@@ -223,6 +223,10 @@ static REGEX_REPLACE: LazyLock<Vec<RegexOpReplace>> = LazyLock::new(|| {
         RegexOpReplace::try_from((r",(?<after>\w)", ", $after")).unwrap(),
         // Specific
         RegexOpReplace::try_from(("4o", "40")).unwrap(),
+        // Mot non traduit:
+        RegexOpReplace::try_from((r"Hey(?<s>\s)", "Hé$s")).unwrap(),
+        // Missing apostrophe (fr)
+        RegexOpReplace::try_from((r"(?<f>[JTt]) ai(?<s>\s)", "$f'ai$s")).unwrap(),
     ]
 });
 
