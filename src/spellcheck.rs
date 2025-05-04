@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use enchant::Broker;
 use srtlib::{ParsingError, Subtitles};
 use thiserror::Error;
 
@@ -29,6 +30,9 @@ enum SpellCheckError {
 
     #[error("frror while tried to add word in spellbook dictionary")]
     SpellbookAddWord(spellbook::ParseFlagError),
+
+    #[error("failed to request dict with enchant Brocker")]
+    EnchantRequestDict(String),
 }
 
 /// Checkspell of text subtitles content.
@@ -40,7 +44,8 @@ pub fn spellcheck_subs(proc_ctx: ProcessingContext, files: &FileProcessor) {
     //let hunspell_fr = load_hunspell("fr_FR"); //TODO: do not hardcode
 
     //let fr_dict = zspell_load_fr_dic().unwrap(); //TODO: enable lang configuration
-    let fr_dict = spellbook_load_fr_dict().unwrap(); //TODO: enable lang configuration
+    //let fr_dict = spellbook_load_fr_dict().unwrap(); //TODO: enable lang configuration
+    let fr_dict = enchant_load_fr_dict().unwrap();
 
     files
         .subtitle_files()
@@ -63,7 +68,7 @@ pub fn spellcheck_subs(proc_ctx: ProcessingContext, files: &FileProcessor) {
 fn spellcheck_text_subs(
     proc_ctx: &ProcessingContext,
     file: &SubtitleFile,
-    dict: &spellbook::Dictionary,
+    dict: &enchant::Dict, //&spellbook::Dictionary,
 ) -> Result<(), SpellCheckError> {
     let filename = file.path();
     proc_ctx.create_sub_process(format!("Check {}", filename.display()));
@@ -83,20 +88,29 @@ fn spellcheck_text_subs(
         //         .iter()
         //         .for_each(|(idx, str)| println!("\terror {idx}: `{str}`"));
         // }
-        eprintln!("process {} : {}", sub.num, sub.text.replace('\n', " "));
+        //eprintln!("process {} : {}", sub.num, sub.text.replace('\n', " "));
 
         //remove and split from  split with
         sub.text
-            .split([' ', ',', '.', '\"', '\'', '\n', ':', '?', '!', '♪'])
+            .split([' ', ',', '.', '\"', '\n', ':', '?', '!', '(', ')', '♪']) // '\'',
+            .filter(|word| !word.is_empty())
             // Remove <i> and </i>,
-            .map(|word| word.trim_start_matches("<i>").trim_end_matches("</i>"))
-            .filter(|word| !dict.check(word))
+            .map(|word| {
+                word.trim()
+                    .trim_start_matches("<i>")
+                    .trim_start_matches('-')
+                    .trim_start_matches("<i>")
+                    .trim_end_matches("</i>")
+            })
+            .filter(|word| !word.is_empty())
+            //.inspect(|word| eprintln!("\tcheck : '{word}'"))
+            .filter(|word| !dict.check(word).unwrap())
             .for_each(|word| {
-                let mut suggestions = Vec::new();
-                dict.suggest(word, &mut suggestions);
+                //let mut suggestions = Vec::new();
+                let suggestions = dict.suggest(word);
                 let text_ctx = sub.text.replace('\n', " ");
                 eprintln!(
-                    "{word:?} is NOT in the dictionary. Did you mean {suggestions:?}?\n{text_ctx}"
+                    "{}: {text_ctx}\n\t{word:?} is NOT in the dictionary. Did you mean {suggestions:?}?", sub.num
                 );
             });
     });
@@ -132,9 +146,45 @@ fn spellbook_load_fr_dict() -> Result<spellbook::Dictionary, SpellCheckError> {
     //    .personal_str(HACK_CUSTOM_DICT)
 }
 
+fn enchant_load_fr_dict() -> Result<enchant::Dict, SpellCheckError> {
+    let mut spell_broker = Broker::new();
+    // for dict in spell_broker.list_dicts() {
+    //     println!("{:?}", dict);
+    // }
+    let dict = spell_broker
+        .request_dict("fr_FR")
+        .map_err(SpellCheckError::EnchantRequestDict)?;
+    //TODO: add to Dict
+    for word in HACK_CUSTOM_DICT {
+        dict.add(word);
+    }
+
+    Ok(dict)
+}
+
 const HACK_CUSTOM_DICT: &[&str] = &[
-    "Dave", "Leonard", "Raj", "Sheldon", "Soyouz", "NASA", "Roeger", "Wolowitz", r"km\/h",
-    "Grinch", "Pasadena",
+    "Leonard",
+    "Raj",
+    "Rajesh",
+    "Sheldon",
+    "Cooper",
+    "Howie",
+    "Wolowitz",
+    "Rostenkowski",
+    "Priya",
+    "Soyouz",
+    "NASA",
+    "Dave",
+    "Roeger",
+    "Bazinga",
+    r"km/h",
+    "Grinch",
+    "Pasadena",
+    "pastrami",
+    "Nesquik",
+    "Warlords",
+    "Oreos",
+    "Tropicana",
 ];
 
 //Wip
