@@ -205,6 +205,11 @@ static REGEX_REPLACE: LazyLock<Vec<RegexOpReplace>> = LazyLock::new(|| {
         RegexOpReplace::try_from((r"(?<f>\d). {2,}(?<s>\d)", "$f.$s")).unwrap(),
         // Remove space before comma
         RegexOpReplace::try_from((" ,", ",")).unwrap(),
+        // Add space after starting `-`
+        RegexOpReplace::try_from((r"^-(?<t>\w)", "- $t")).unwrap(),
+        // Add space before !, ? or :
+        RegexOpReplace::try_from((r"(?<w>\w)(?<p>[\!\?\:])", "$w $p")).unwrap(),
+        // TODO: check space before and after ( and )
         // Replace two apostrophe with quotation mark
         RegexOpReplace::try_from(("''", "\"")).unwrap(),
         RegexOpReplace::try_from(("^Ca (.*)", "Ça $1")).unwrap(), //TODO: check validity
