@@ -1,0 +1,12 @@
+include = ["*.toml"]
+
+[formatting]
+indent_string = "    "
+reorder_keys = false
+
+[[rule]]
+include = ["Cargo.toml"]
+keys = ["dependencies", "lints.rust", "lints.clippy"]
+
+[rule.formatting]
+reorder_keys = true
