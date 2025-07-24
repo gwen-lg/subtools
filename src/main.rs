@@ -13,6 +13,7 @@ use subtools::{
 
 /// A CLI application to manipulate subtitles files.
 #[derive(Debug, Parser)]
+#[command(version)]
 #[command(name = "sub_tools")]
 #[command(about = "A command line tool to manipulate subtitles files with help of `subtile`", long_about = None)]
 struct Cli {
