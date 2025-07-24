@@ -1,6 +1,7 @@
 [default.extend-words]
 # Don't correct the crate name
 subtile = "subtile"
+fre = "fre"
 
 [files]
 extend-exclude = ["CHANGELOG.md", ".vscode/*", "dictionaries/*"]
