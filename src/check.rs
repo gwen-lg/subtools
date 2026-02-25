@@ -213,7 +213,7 @@ static REGEX_REPLACE: LazyLock<Vec<RegexOpReplace>> = LazyLock::new(|| {
         // Replace two apostrophe with quotation mark
         RegexOpReplace::try_from(("''", "\"")).unwrap(),
         RegexOpReplace::try_from(("^Ca (.*)", "Ça $1")).unwrap(), //TODO: check validity
-        RegexOpReplace::try_from((" ca ", " ça ")).unwrap(),
+        RegexOpReplace::try_from((" ca(?<p>[ .,])", " ça$p")).unwrap(),
         RegexOpReplace::try_from(("^II ", "Il ")).unwrap(),
         RegexOpReplace::try_from((". II ", ". Il ")).unwrap(), //TODO: regroup with previous ?
         RegexOpReplace::try_from(("^IIs ", "Ils ")).unwrap(),
