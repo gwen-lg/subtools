@@ -1,5 +1,5 @@
 use crate::{
-    IterProcessing, ProcessingContext, SubProcess,
+    IterProcessing as _, ProcessingContext, SubProcess as _,
     file_processor::FileProcessor,
     matroska::{
         CodecId, ContentDecoder, DumpInfo, FrameHandler, PgsFrameHandler, SrtWriter,
@@ -10,7 +10,7 @@ use matroska_demuxer::{Frame, MatroskaFile, TrackType};
 use std::{
     cell::RefCell,
     fs::File,
-    io::{BufReader, BufWriter, Write},
+    io::{BufReader, BufWriter, Write as _},
     num::NonZero,
     path::{Path, PathBuf},
     rc::Rc,

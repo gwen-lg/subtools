@@ -1,6 +1,6 @@
 use crate::{
-    FileProcessor, IterProcessing, ProcessingContext, SubProcess, SubtitleFile,
-    regex::{RegexCheck, RegexOpCheck, RegexOpReplace, RegexReplace},
+    FileProcessor, IterProcessing as _, ProcessingContext, SubProcess as _, SubtitleFile,
+    regex::{RegexCheck as _, RegexOpCheck, RegexOpReplace, RegexReplace as _},
 };
 use regex::Regex;
 use srtlib::{ParsingError, Subtitle, Subtitles};
