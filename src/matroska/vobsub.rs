@@ -3,7 +3,7 @@ use static_assertions::assert_eq_size;
 use std::{
     cmp::min,
     io::{Seek, Write},
-    mem,
+    mem, usize,
 };
 use subtile::{time::TimePoint, vobsub::TimePointIdx};
 
@@ -93,67 +93,47 @@ impl MpegPsHeader {
 
 #[repr(C, packed)]
 struct MpegEsHeader {
-    pfx: [u8; 3],  // 00 00 01
-    stream_id: u8, // BD
-    len: [u8; 2],
-    flags: [u8; 2],
-    hlen: u8,
-    pts: [u8; 5],
-    lidx: u8,
+    data: [u8; 15],
 }
 impl MpegEsHeader {
     const fn from(first: usize, c: u64, padding: usize, size: usize) -> Self {
-        // lidx: u8,
-        let mut len = [0u8; 2];
-        len[0] = ((first + 9) >> 8) as u8;
-        len[1] = (first + 9) as u8;
-        let mut pts = [0u8; 5];
-        pts[0] = 0x20 | ((c >> 29) as u8 & 0x0e) | 0x01;
-        pts[1] = (c >> 22) as u8;
-        pts[2] = ((c >> 14) as u8 & 0xfe) | 0x01;
-        pts[3] = (c >> 7) as u8;
-        pts[4] = (c << 1) as u8 | 0x01;
         let mut hlen = 5;
-        if (6 > padding) && (first == size) {
+        let padding = if (6 > padding) && (first == size) {
             hlen += padding as u8; //TODO: check padding value
-            len[0] = ((first + 9 + padding) >> 8) as u8;
-            len[1] = (first + 9 + padding) as u8;
-        }
-        Self {
-            pfx: [0, 0, 1],
-            stream_id: 0xbd,
-            len,
-            flags: [0x81, 0x80],
-            hlen,
-            pts,
-            lidx: 0, //Not write by this way
-        }
+            padding as u16
+        } else {
+            0_u16
+        };
+        let len = (first as u16 + 9 + padding).to_be_bytes();
+        let data = [
+            0x0_u8,                                 // pfx[0]
+            0x0_u8,                                 // pfx[1]
+            0x1_u8,                                 // pfx[2]
+            0xbd_u8,                                // stream_id
+            len[0],                                 // len[0]
+            len[1],                                 // len[1]
+            0x81,                                   // flags[0]
+            0x80,                                   // flags[1]
+            hlen,                                   // hlen
+            0x20 | ((c >> 29) as u8 & 0x0e) | 0x01, //pts[0],
+            (c >> 22) as u8,                        //pts[1]
+            ((c >> 14) as u8 & 0xfe) | 0x01,        //pts[2]
+            (c >> 7) as u8,                         //pts[3]
+            (c << 1) as u8 | 0x01,                  //pts[4]
+            0,                                      //lidx: not written by this way
+        ];
+        Self { data }
     }
-    //lidx volontarly ignored ?
-    const fn bytes(&self) -> [u8; 14] {
-        [
-            self.pfx[0],
-            self.pfx[1],
-            self.pfx[2],
-            self.stream_id,
-            self.len[0],
-            self.len[1],
-            self.flags[0],
-            self.flags[1],
-            self.hlen,
-            self.pts[0],
-            self.pts[1],
-            self.pts[2],
-            self.pts[3],
-            self.pts[4],
-        ]
+
+    const fn as_bytes(&self) -> &[u8] {
+        self.data.split_at(14).0 //lidx volontarly ignored
     }
 }
 
-struct MpegEdHeader2 {
+struct MpegEsHeader2 {
     data: [u8; 9],
 }
-impl MpegEdHeader2 {
+impl MpegEsHeader2 {
     const fn from(first: usize, size: usize, padding: usize) -> Self {
         let mut hlen = 0;
         let padding = if (6 > padding) && (first == size) {
@@ -181,10 +161,10 @@ impl MpegEdHeader2 {
     }
 }
 
-struct MpegEdHeader3 {
+struct MpegEsHeader3 {
     data: [u8; 6],
 }
-impl MpegEdHeader3 {
+impl MpegEsHeader3 {
     const fn from(padding: u16) -> Self {
         let len = u16::to_be_bytes(padding);
         let data = [
@@ -250,9 +230,9 @@ where
             self.sub_writer.write_all(&ps.bytes()).unwrap();
             if first_packet {
                 let es_data = MpegEsHeader::from(first, c, padding, size);
-                self.sub_writer.write_all(&es_data.bytes()).unwrap();
+                self.sub_writer.write_all(es_data.as_bytes()).unwrap();
             } else {
-                let es_data = MpegEdHeader2::from(first, size, padding);
+                let es_data = MpegEsHeader2::from(first, size, padding);
                 self.sub_writer.write_all(es_data.as_bytes()).unwrap();
             }
 
@@ -278,13 +258,13 @@ where
                 data = remaining;
                 remaining = EMPTY;
             }
-            if data.len() > 0 {
+            if !data.is_empty() {
                 padding = (2048 - (data.len() + 10 + mem::size_of::<MpegPsHeader>())) & 2047;
             }
         }
         if 6 <= padding {
             padding -= 6;
-            let es = MpegEdHeader3::from(padding as u16);
+            let es = MpegEsHeader3::from(padding as u16);
             self.sub_writer.write_all(es.as_bytes()).unwrap();
 
             while 0 < padding {
