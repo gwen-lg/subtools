@@ -96,11 +96,11 @@ struct MpegEsHeader {
     data: [u8; 15],
 }
 impl MpegEsHeader {
-    const fn from(first: usize, c: u64, padding: usize, size: usize) -> Self {
+    const fn from(first: usize, c: u64, padding: u16, size: usize) -> Self {
         let mut hlen = 5;
         let padding = if (6 > padding) && (first == size) {
             hlen += padding as u8; //TODO: check padding value
-            padding as u16
+            padding
         } else {
             0_u16
         };
@@ -134,15 +134,15 @@ struct MpegEsHeader2 {
     data: [u8; 9],
 }
 impl MpegEsHeader2 {
-    const fn from(first: usize, size: usize, padding: usize) -> Self {
+    const fn from(first: usize, size: usize, padding: u16) -> Self {
         let mut hlen = 0;
-        let padding = if (6 > padding) && (first == size) {
+        let len_addition = if (6 > padding) && (first == size) {
             hlen += padding as u8; //TODO: check padding value
-            padding as u16
+            padding + 4 //concerver sur les boucles suivante
         } else {
-            0_u16
+            4_u16
         };
-        let len = (first as u16 + 9 + padding).to_be_bytes();
+        let len = (first as u16 + len_addition).to_be_bytes();
         let data = [
             0x0_u8, // pfx[0]
             0x0_u8, // pfx[1]
@@ -214,33 +214,41 @@ where
 
         let size = content.len();
         let full_size = size + mem::size_of::<MpegPsHeader>() + mem::size_of::<MpegEsHeader>();
-        let mut padding = (2048_usize.overflowing_sub(full_size)).0 & 2047;
+        let mut padding = u16::MAX;
 
         let c = timestamp * 90; //already converted ? * 9 / 100_000;
         let ps = MpegPsHeader::from(c);
 
         let (mut data, mut remaining) = content
-       let (mut data, mut remaining) = content
-            .split_at_ch            .unwrap();
+            .split_at_checked(min(PACK_FIRST_SIZE_MAX, content.len()))
+            .unwrap();
 
-        let first = usize::min(size, PACK_SIZE_MAX);
         let lidx = 0x20; //TODO: if !self.master { 0x20 } else { self.stream_id };
 
         let mut first_packet = true;
 
         while !data.is_empty() {
             self.sub_writer.write_all(&ps.bytes()).unwrap();
-            if first_packet {
+
+            let size = data.len();
+
+            let first = if first_packet {
+                let first = usize::min(size, PACK_FIRST_SIZE_MAX);
+                padding = ((2048_usize.overflowing_sub(full_size)).0 & 2047) as u16;
                 let es_data = MpegEsHeader::from(first, c, padding, size);
                 self.sub_writer.write_all(es_data.as_bytes()).unwrap();
+                first
             } else {
+                let first = usize::min(size, PACK_NEXT_SIZE_MAX);
+                padding = ((2048 - (size + 10 + mem::size_of::<MpegPsHeader>())) & 2047) as u16;
                 let es_data = MpegEsHeader2::from(first, size, padding);
                 self.sub_writer.write_all(es_data.as_bytes()).unwrap();
-            }
+                first
+            };
 
             // Write padding
             if (0 < padding) && (6 > padding) && (first == size) {
-                let (padding_data, _) = PADDING_DATA.split_at(padding);
+                let (padding_data, _) = PADDING_DATA.split_at(padding as usize);
                 self.sub_writer.write_all(padding_data).unwrap();
             }
 
@@ -249,29 +257,24 @@ where
 
             // prepare next loop
             first_packet = false;
-            if remaining.len() > 2048 - mem::size_of::<MpegPsHeader>() - 10 {
-                let (new_data, new_remaining) = remaining.split_at(min(
-                    2048 - mem::size_of::<MpegPsHeader>() - 10,
-                    remaining.len(),
-                ));
+            if remaining.len() > PACK_NEXT_SIZE_MAX {
+                let (new_data, new_remaining) =
+                    remaining.split_at(min(PACK_NEXT_SIZE_MAX, remaining.len()));
                 data = new_data;
                 remaining = new_remaining;
             } else {
                 data = remaining;
                 remaining = EMPTY;
             }
-            if !data.is_empty() {
-                padding = (2048 - (data.len() + 10 + mem::size_of::<MpegPsHeader>())) & 2047;
-            }
         }
         if 6 <= padding {
             padding -= 6;
-            let es = MpegEsHeader3::from(padding as u16);
+            let es = MpegEsHeader3::from(padding);
             self.sub_writer.write_all(es.as_bytes()).unwrap();
 
             while 0 < padding {
                 let todo = if 8 < padding { 8 } else { padding };
-                let (padding_data, _) = PADDING_DATA.split_at(todo);
+                let (padding_data, _) = PADDING_DATA.split_at(todo as usize);
                 self.sub_writer.write_all(padding_data).unwrap();
                 padding -= todo;
             }
