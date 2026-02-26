@@ -1,5 +1,7 @@
 use super::FrameHandler;
+use static_assertions::assert_eq_size;
 use std::{
+    cmp::min,
     io::{Seek, Write},
     mem,
 };
@@ -42,6 +44,7 @@ where
 }
 
 const PS_HEADER_TAG: [u8; 4] = [0x00, 0x00, 0x01, 0xba];
+
 #[repr(C, packed)]
 struct MpegPsHeader {
     pfx: [u8; 4], // 00 00 01 BA
@@ -51,14 +54,12 @@ struct MpegPsHeader {
 }
 impl MpegPsHeader {
     const fn from(c: u64) -> Self {
-        // mpeg_ps_header_t ps;
-        // memset(&ps, 0, sizeof(mpeg_ps_header_t));
         let mut scr = [0u8; 6];
-        scr[0] = 0x40 | ((c >> 27) & 0x38) as u8 | 0x04 | ((c >> 28) & 0x03) as u8;
+        scr[0] = 0x40 | ((c >> 27) as u8 & 0x38) | 0x04 | ((c >> 28) as u8 & 0x03);
         scr[1] = (c >> 20) as u8;
-        scr[2] = ((c >> 12) & 0xf8) as u8 | 0x04 | ((c >> 13) & 0x03) as u8;
+        scr[2] = ((c >> 12) as u8 & 0xf8) | 0x04 | ((c >> 13) as u8 & 0x03);
         scr[3] = (c >> 5) as u8;
-        scr[4] = ((c << 3) & 0xf8) as u8 | 0x04;
+        scr[4] = ((c << 3) as u8 & 0xf8) | 0x04;
         scr[5] = 1;
         let muxr = [1u8, 0x89, 0xc3]; // just some value
 
@@ -153,12 +154,14 @@ impl MpegEsHeader {
 
 //const PESPACKET_HEADER: &[u8] = &[0x00, 0x00, 0x01, 0xba];
 const PADDING_DATA: &[u8] = &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
+const PACK_SIZE_MAX: usize = 2048 - mem::size_of::<MpegPsHeader>() + mem::size_of::<MpegEsHeader>();
+const EMPTY: &[u8] = &[];
 
 impl<Writer> FrameHandler for VobSubFrameHandler<Writer>
 where
     Writer: Write + Seek,
 {
-    fn push_frame(&mut self, timestamp: u64, duration: Option<u64>, content: &[u8]) {
+    fn push_frame(&mut self, timestamp: u64, _duration: Option<u64>, content: &[u8]) {
         let time_point = TimePoint::from_msecs(i64::try_from(timestamp).unwrap());
         let filepos = self.sub_writer.stream_position().unwrap();
 
@@ -176,41 +179,75 @@ where
         //     "VobSub frame `{}` ({content_size}) : {start_content:X?}",
         //     time_point.to_secs()
         // );
-        //
 
         let size = content.len();
-        let padding = (2048
-            - (size + mem::size_of::<MpegPsHeader>() + mem::size_of::<MpegEsHeader>()))
-            & 2047;
-        let first = if size + mem::size_of::<MpegPsHeader>() + mem::size_of::<MpegEsHeader>() > 2048
-        {
-            assert!(false); //Need to manage second content section
-            2048 - mem::size_of::<MpegPsHeader>() - mem::size_of::<MpegEsHeader>()
-        } else {
-            size
-        };
-        let c = timestamp * 9 / 100_000;
+        let full_size = size + mem::size_of::<MpegPsHeader>() + mem::size_of::<MpegEsHeader>();
+        let padding = (2048_usize.overflowing_sub(full_size)).0 & 2047;
+
+        let c = timestamp * 90; //already converted ? * 9 / 100_000;
         let ps = MpegPsHeader::from(c);
 
+        let (mut data, mut remaining) = content
+            .split_at_checked(min(PACK_SIZE_MAX, content.len()))
+            .unwrap();
+
+        let first = usize::min(size, PACK_SIZE_MAX);
         let lidx = 0x20; //TODO: if !self.master { 0x20 } else { self.stream_id };
         let es = MpegEsHeader::from(first, c, lidx, padding, size);
 
-        self.sub_writer.write_all(&ps.bytes()).unwrap();
-        self.sub_writer.write_all(&es.bytes()).unwrap();
-        if (0 < padding) && (6 > padding) && (first == size) {
-            let (padding_data, _) = PADDING_DATA.split_at(padding);
-            self.sub_writer.write_all(padding_data).unwrap();
-        }
-        //TODO write padding
-        self.sub_writer.write_all(&es.lidx()).unwrap();
+        let mut first_packet = true;
 
-        //TODO: 25xu8
-        // Clock and Ext : 46 bits
-        // let bit_rate = take_bits(22u32); // Bit rate
-        // let marker_bits = tag_bits(0b11, 2u8); // Marker bits.
-        // let reserved = take_bits::<_, u8, u8, nom::error::Error<(&[u8], usize)>>(5u8); // Reserved.
-        // let stuffing_length =
-        //     take_bits::<_, usize, usize, nom::error::Error<(&[u8], usize)>>(3usize); // Number of bytes of stuffing.
-        self.sub_writer.write_all(content).unwrap();
+        while !data.is_empty() {
+            self.sub_writer.write_all(&ps.bytes()).unwrap();
+            let pes = es.bytes();
+            let es_data = if first_packet {
+                &pes
+            } else {
+                pes.split_at(9).0
+            };
+            self.sub_writer.write_all(es_data).unwrap();
+            if (0 < padding) && (6 > padding) && (first == size) {
+                let (padding_data, _) = PADDING_DATA.split_at(padding);
+                self.sub_writer.write_all(padding_data).unwrap();
+            }
+            //TODO write padding
+            self.sub_writer.write_all(&es.lidx()).unwrap();
+
+            self.sub_writer.write_all(data).unwrap();
+
+            first_packet = false;
+            if remaining.len() > 2048 - mem::size_of::<MpegPsHeader>() - 10 {
+                let (new_data, new_remaining) = remaining.split_at(min(
+                    2048 - mem::size_of::<MpegPsHeader>() - 10,
+                    remaining.len(),
+                ));
+                data = new_data;
+                remaining = new_remaining;
+            } else {
+                data = remaining;
+                remaining = EMPTY;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn timestamp() {
+        let ref_value = [0x44, 0x01, 0xC4, 0x87, 0x14];
+        let time_value = 20437 * 90;
+        let scr_0 =
+            0x40 | ((time_value >> 27) as u8 & 0x38) | 0x04 | ((time_value >> 28) as u8 & 0x03);
+        assert_eq!(ref_value[0], scr_0);
+        let scr_1 = (time_value >> 20) as u8;
+        assert_eq!(ref_value[1], scr_1);
+        let scr_2 = ((time_value >> 12) & 0xf8) as u8 | 0x04 | ((time_value >> 13) & 0x03) as u8;
+        assert_eq!(ref_value[2], scr_2);
+        let scr_3 = (time_value >> 5) as u8;
+        assert_eq!(ref_value[3], scr_3);
+        let scr_4 = ((time_value << 3) & 0xf8) as u8 | 0x04;
+        assert_eq!(ref_value[4], scr_4);
+        // scr_5 = 1;
     }
 }
