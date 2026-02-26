@@ -257,13 +257,14 @@ pub trait IterProcessing: Iterator {
     /// This allow to auto-magically handle progress
     fn process_context(
         self,
-        ctx: impl SubProcess,
-        name: impl Into<String>,
+        //only Into subprocess ?
+        ctx: impl SubProcess,    // Into<???
+        name: impl Into<String>, // Into<ProcessInfo> Process/Task
     ) -> ProcessingContextIter<Self>
     where
         Self: std::marker::Sized,
     {
-        let mut sub_context = ctx.create_sub_process(name);
+        let mut sub_context = ctx.create_sub_process(name); // Extract in Into parameter ?
         //let nb_element = self.len(); // for ExactSizeIterator
         let (nb_element, _) = self.size_hint();
 

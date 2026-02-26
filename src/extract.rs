@@ -2,8 +2,8 @@ use crate::{
     IterProcessing as _, ProcessingContext, SubProcess as _,
     file_processor::FileProcessor,
     matroska::{
-        CodecId, ContentDecoder, DumpInfo, FrameHandler, PgsFrameHandler, SrtWriter,
-        VobSubFrameHandler, WebvttWriter, write_info,
+        CodecId, ContentDecoder, FrameHandler, PgsFrameHandler, SrtWriter, VobSubFrameHandler,
+        WebvttWriter, write_info,
     },
 };
 use matroska_demuxer::{Frame, MatroskaFile, TrackType};
@@ -119,21 +119,22 @@ fn create_frame_decoder(
     match codec {
         CodecId::Ass => todo!(),
         CodecId::Pgs => {
-            let prefix: String = filename
-                .as_path()
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap_or("frame")
-                .into();
+            // let prefix: String = filename
+            //     .as_path()
+            //     .file_stem()
+            //     .unwrap()
+            //     .to_str()
+            //     .unwrap_or("frame")
+            //     .into();
 
             filename.set_extension("sup");
             let file = BufWriter::new(File::create(filename).unwrap());
-            let mut pgs_frame_handler = Box::new(PgsFrameHandler::new(file));
+            //let mut pgs_frame_handler =
+            Box::new(PgsFrameHandler::new(file))
 
-            pgs_frame_handler
-                .dump_raw_frame(DumpInfo::new(&prefix, track.language().unwrap_or("eng")));
-            pgs_frame_handler
+            // pgs_frame_handler
+            //     .dump_raw_frame(DumpInfo::new(&prefix, track.language().unwrap_or("eng")));
+            //pgs_frame_handler
         }
         CodecId::SubRip => {
             filename.set_extension("srt");
