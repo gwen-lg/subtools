@@ -99,7 +99,7 @@ struct MpegEsHeader {
     flags: [u8; 2],
     hlen: u8,
     pts: [u8; 5],
-    //lidx: u8,
+    lidx: u8,
 }
 impl MpegEsHeader {
     const fn from(first: usize, c: u64, padding: usize, size: usize) -> Self {
@@ -126,7 +126,7 @@ impl MpegEsHeader {
             flags: [0x81, 0x80],
             hlen,
             pts,
-            //lidx,
+            lidx: 0, //Not write by this way
         }
     }
     //lidx volontarly ignored ?
@@ -156,21 +156,44 @@ struct MpegEdHeader2 {
 impl MpegEdHeader2 {
     const fn from(first: usize, size: usize, padding: usize) -> Self {
         let mut hlen = 0;
-        if (6 > padding) && (first == size) {
+        let padding = if (6 > padding) && (first == size) {
             hlen += padding as u8; //TODO: check padding value
-            //   es.len[0]  = (uint8_t)((first + 4 + padding) >> 8);
-            //   es.len[1]  = (uint8_t)(first + 4 + padding);
-        }
+            padding as u16
+        } else {
+            0_u16
+        };
+        let len = (first as u16 + 9 + padding).to_be_bytes();
         let data = [
-            0x0_u8,                   // pfx[0]
-            0x0_u8,                   // pfx[1]
-            0x1_u8,                   // pfx[2]
-            0xbd,                     // stream_id
-            ((first + 4) >> 8) as u8, // len[0]
-            (first + 4) as u8,        // len[1]
-            0x81,                     // flags[0]
-            0x0,                      // flags[1]
-            hlen,                     // hlen
+            0x0_u8, // pfx[0]
+            0x0_u8, // pfx[1]
+            0x1_u8, // pfx[2]
+            0xbd,   // stream_id
+            len[0], // len[0]
+            len[1], // len[1]
+            0x81,   // flags[0]
+            0x0,    // flags[1]
+            hlen,   // hlen
+        ];
+        Self { data }
+    }
+    const fn as_bytes(&self) -> &[u8] {
+        &self.data
+    }
+}
+
+struct MpegEdHeader3 {
+    data: [u8; 6],
+}
+impl MpegEdHeader3 {
+    const fn from(padding: u16) -> Self {
+        let len = u16::to_be_bytes(padding);
+        let data = [
+            0x0_u8, // pfx[0]
+            0x0_u8, // pfx[1]
+            0x1_u8, // pfx[2]
+            0xbe,   // stream_id
+            len[0], // len[0]
+            len[1], // len[1]
         ];
         Self { data }
     }
@@ -209,7 +232,7 @@ where
 
         let size = content.len();
         let full_size = size + mem::size_of::<MpegPsHeader>() + mem::size_of::<MpegEsHeader>();
-        let padding = (2048_usize.overflowing_sub(full_size)).0 & 2047;
+        let mut padding = (2048_usize.overflowing_sub(full_size)).0 & 2047;
 
         let c = timestamp * 90; //already converted ? * 9 / 100_000;
         let ps = MpegPsHeader::from(c);
@@ -232,17 +255,17 @@ where
                 let es_data = MpegEdHeader2::from(first, size, padding);
                 self.sub_writer.write_all(es_data.as_bytes()).unwrap();
             }
+
+            // Write padding
             if (0 < padding) && (6 > padding) && (first == size) {
                 let (padding_data, _) = PADDING_DATA.split_at(padding);
                 self.sub_writer.write_all(padding_data).unwrap();
             }
-            //TODO:
-            // - write padding
 
             self.sub_writer.write_all(&[lidx]).unwrap();
-
             self.sub_writer.write_all(data).unwrap();
 
+            // prepare next loop
             first_packet = false;
             if remaining.len() > 2048 - mem::size_of::<MpegPsHeader>() - 10 {
                 let (new_data, new_remaining) = remaining.split_at(min(
@@ -254,6 +277,21 @@ where
             } else {
                 data = remaining;
                 remaining = EMPTY;
+            }
+            if data.len() > 0 {
+                padding = (2048 - (data.len() + 10 + mem::size_of::<MpegPsHeader>())) & 2047;
+            }
+        }
+        if 6 <= padding {
+            padding -= 6;
+            let es = MpegEdHeader3::from(padding as u16);
+            self.sub_writer.write_all(es.as_bytes()).unwrap();
+
+            while 0 < padding {
+                let todo = if 8 < padding { 8 } else { padding };
+                let (padding_data, _) = PADDING_DATA.split_at(todo);
+                self.sub_writer.write_all(padding_data).unwrap();
+                padding -= todo;
             }
         }
     }
