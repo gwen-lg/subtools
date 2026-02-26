@@ -21,7 +21,6 @@ where
 {
     /// Create a `VobSub` subtitle line Decoder.
     #[must_use]
-    #[allow(clippy::missing_panics_doc)] //TODO: remove unwrap by return error, or by get str data
     pub const fn new(writer: Writer) -> Self {
         Self {
             writer,
