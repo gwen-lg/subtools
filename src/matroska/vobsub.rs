@@ -184,7 +184,9 @@ impl MpegEsHeader3 {
 
 //const PESPACKET_HEADER: &[u8] = &[0x00, 0x00, 0x01, 0xba];
 const PADDING_DATA: &[u8] = &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
-const PACK_SIZE_MAX: usize = 2048 - mem::size_of::<MpegPsHeader>() - mem::size_of::<MpegEsHeader>();
+const PACK_FIRST_SIZE_MAX: usize =
+    2048 - mem::size_of::<MpegPsHeader>() - mem::size_of::<MpegEsHeader>();
+const PACK_NEXT_SIZE_MAX: usize = 2048 - mem::size_of::<MpegPsHeader>() - 10;
 const EMPTY: &[u8] = &[];
 
 impl<Writer> FrameHandler for VobSubFrameHandler<Writer>
@@ -218,8 +220,8 @@ where
         let ps = MpegPsHeader::from(c);
 
         let (mut data, mut remaining) = content
-            .split_at_checked(min(PACK_SIZE_MAX, content.len()))
-            .unwrap();
+       let (mut data, mut remaining) = content
+            .split_at_ch            .unwrap();
 
         let first = usize::min(size, PACK_SIZE_MAX);
         let lidx = 0x20; //TODO: if !self.master { 0x20 } else { self.stream_id };
