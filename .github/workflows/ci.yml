@@ -60,3 +60,22 @@ jobs:
       - name: Check spelling of entire workspace
         uses: crate-ci/typos@master
 
+  toml_checks:
+    runs-on: ubuntu-latest
+    name: Toml check
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: "Cargo.toml format"
+        if: $${{ always() }}
+        uses: gwen-lg/taplo-action@v1
+        with:
+          format: true
+          lint: false
+
+      - name: "Cargo.toml lint"
+        if: $${{ always() }}
+        uses: gwen-lg/taplo-action@v1
+        with:
+          format: false
+          lint: true
