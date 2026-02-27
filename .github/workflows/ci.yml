@@ -51,4 +51,12 @@ jobs:
         if: $${{ always() }}
         run: cargo doc --no-deps
 
+  typos_checks:
+    runs-on: ubuntu-latest
+    name: Typos check
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+      - name: Check spelling of entire workspace
+        uses: crate-ci/typos@master
 
