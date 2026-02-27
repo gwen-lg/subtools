@@ -12,8 +12,8 @@ env:
   RUSTDOCFLAGS: "-D warnings"
 
 jobs:
-  ci_code_checks_and_tests:
-    runs-on: ubuntu-latest
+  code_checks:
+    runs-on: codeberg-small
     name: Code Checks
 
     steps:
@@ -52,7 +52,7 @@ jobs:
         run: cargo doc --no-deps
 
   typos_checks:
-    runs-on: ubuntu-latest
+    runs-on: codeberg-tiny
     name: Typos check
     steps:
       - name: "Checkout"
@@ -61,7 +61,7 @@ jobs:
         uses: crate-ci/typos@master
 
   toml_checks:
-    runs-on: ubuntu-latest
+    runs-on: codeberg-tiny
     name: Toml check
     steps:
       - uses: actions/checkout@v6
